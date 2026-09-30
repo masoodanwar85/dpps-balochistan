@@ -251,7 +251,7 @@ API host, `/etc/apache2/sites-available/dpps-api.conf`:
     <Directory /var/www/dpps/backend/public>
         Options -Indexes +FollowSymLinks
         AllowOverride All
-        Require local
+        Require all granted
         CGIPassAuth On
     </Directory>
 
@@ -260,7 +260,7 @@ API host, `/etc/apache2/sites-available/dpps-api.conf`:
 </VirtualHost>
 ```
 
-`AllowOverride All` lets `backend/public/.htaccess` send each API request to `index.php` and pass the `Authorization` and `X-XSRF-TOKEN` headers through to PHP. `SetEnv HTTPS on` is safe here because this host only receives requests from the public HTTPS site. PHP then treats the request as secure, and the API sends `Strict-Transport-Security`. `mod_remoteip` puts the browser address in `REMOTE_ADDR`, which login limits and the activity log both use.
+`AllowOverride All` lets `backend/public/.htaccess` send each API request to `index.php` and pass the `Authorization` and `X-XSRF-TOKEN` headers through to PHP. `SetEnv HTTPS on` is safe here because this host only receives requests from the public HTTPS site. PHP then treats the request as secure, and the API sends `Strict-Transport-Security`. `mod_remoteip` puts the browser address in `REMOTE_ADDR`, which login limits and the activity log both use. Use `Require all granted` in this directory. `Require local` looks at that browser address and returns 403 Forbidden for every login. The host stays private because it listens only on `127.0.0.1:8080`.
 
 Public host, `/etc/apache2/sites-available/dpps.conf`:
 
