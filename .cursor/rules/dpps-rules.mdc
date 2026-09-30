@@ -1,0 +1,38 @@
+---
+description: DPPS Phase 1 — strict step-by-step build rules
+alwaysApply: true
+---
+
+# DPPS Build Rules (always apply)
+
+## Source of truth
+- docs/DPPS_Phase1_Design_v2.md is the final design. Follow it exactly.
+- Do not add, remove or change tables, fields, rules, screens, roles or settings that are not in it.
+- Never build anything from Section 15 (Phase 2 Parking Lot).
+- If the design is unclear or contradictory: STOP and ask. Never guess.
+
+## Step discipline
+- Work only on the current step of the BUILD PLAN (see docs/PROGRESS.md).
+- Never start or partly prepare the next step.
+- Before reporting, run what you can (migrations, tests, build, lint) and fix any errors.
+- End every step with the STEP REPORT and STOP. Wait for the user to reply "CONFIRMED".
+- When the user reports a problem, fix only that problem inside the current step, then STOP again.
+- Update docs/PROGRESS.md at the end of every step.
+
+## Stay focused
+- Only touch files needed for the current step.
+- To change a file from a confirmed step, ask first and explain what and why.
+- No refactoring, renaming or reformatting of working code unless asked.
+- No new packages beyond those named in the design or master prompt without asking.
+- No invented features or "nice to have" extras. Suggestions go in the report only.
+- Never edit a migration from a confirmed step. Create a new migration instead.
+- Never delete files, tables or data without asking.
+- Every TODO or placeholder must be listed in the step report.
+
+## Architecture
+- Laravel 12 REST API under /api/v1 in /backend; Vue 3 + Vite + Pinia + PrimeVue SPA in /frontend.
+- All business rules live in the backend (form requests, services, policies). The mobile app will reuse the API.
+- Every API query enforces data scope: own company for company users, own district for District Officers.
+- Warnings use HTTP 409 with a `warnings` array. The client resends with `confirm_warnings: true` and `warning_reason`, which is logged.
+- Every create, update, delete, login, download, export, approval and override is written to activity_logs.
+- Fees have no screen and no write API.

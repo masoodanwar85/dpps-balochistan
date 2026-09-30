@@ -1,0 +1,596 @@
+# DPPS Build Progress
+
+Clarifications in `docs/CLARIFICATIONS.md` override `docs/DPPS_Phase1_Design_v2.md` where they differ.
+
+## Build plan
+
+| Step | Name | Status |
+|---|---|---|
+| 0 | Read and understand | Confirmed |
+| 1 | Project setup | Confirmed |
+| 2 | Migrations part 1: users, settings, fees, lookups | Confirmed |
+| 3 | Migrations part 2: persons, companies, products, dealers | Confirmed |
+| 4 | Migrations part 3: workflow, applications, licenses, documents, logs, import | Confirmed |
+| 5 | Seeders | Confirmed |
+| 6 | Authentication API | Confirmed |
+| 7 | Frontend shell | Confirmed |
+| 8 | Users and roles | Confirmed |
+| 9 | Settings, lookups, products master | Confirmed |
+| 10 | Checklist templates and workflow stages | Confirmed |
+| 11 | Persons | Confirmed |
+| 12 | Companies | Confirmed |
+| 13 | Company profile | Confirmed |
+| 14 | Documents | Confirmed |
+| 15 | Dealers | Confirmed |
+| 16 | Applications part 1 | Confirmed |
+| 17 | Applications part 2 | Confirmed |
+| 18 | License issuance | Confirmed |
+| 19 | Nightly status job and dashboard | Confirmed |
+| 20 | Verification queue | Confirmed |
+| 21 | Company portal | Confirmed |
+| 22 | Activity log viewer | Confirmed |
+| 23 | Data import | Confirmed |
+| 24 | Final hardening and review | Waiting for confirmation |
+
+## Step 0 — Read and understand
+
+Confirmed. No code. Summary accepted. Answers are in `docs/CLARIFICATIONS.md`.
+
+## Step 1 — Project setup
+
+Confirmed.
+
+### What was built
+
+- Laravel 12 API in `/backend` (framework 12.69, Sanctum 4.3, Pest 3.8).
+- Vue 3 SPA in `/frontend` (Vite, Pinia, Vue Router, shadcn-vue, Tailwind CSS).
+- MySQL database `dpp_management_system`.
+- Sanctum SPA cookie auth (stateful API, CORS with credentials).
+- API prefix `/api/v1`.
+- JSON envelope `{ data, meta, errors }`, plus `warnings` on HTTP 409.
+- `GET /api/v1/health`.
+- Frontend home page that shows "API connected".
+
+### Notes
+
+- The design `users` table is not created in this step. The skeleton migration creates `password_reset_tokens` (unused, for Phase 2) and `sessions` only. `sessions.user_id` is not a foreign key yet.
+- Framework tables kept as shipped: `sessions`, `cache`, `jobs`, `password_reset_tokens`, `personal_access_tokens`.
+- The Laravel `User` model has Sanctum's `HasApiTokens`. Step 2 will replace this model to match the design. That change will need to keep `HasApiTokens`.
+- UI library is shadcn-vue, not PrimeVue. Recorded in `docs/CLARIFICATIONS.md` (B18).
+- Development PHP is 8.5.9. Production stays PHP 8.3. Composer is pinned to resolve packages for PHP 8.3.33 so updates stay installable on production. Tests passed on both PHP 8.5.9 and PHP 8.3.33.
+- Development MySQL 9.6.0 is accepted.
+- PHP 8.3 prints a startup warning about a missing `intl.so` path. The `intl` module is still loaded. Tests and migrations succeeded.
+- Session lifetime is still Laravel's 120 minutes. The 30-minute timeout is Step 24.
+- Laravel's own `/up` route remains. The DPPS health check is `GET /api/v1/health`.
+
+## Step 2 — Migrations part 1
+
+Confirmed.
+
+### What was built
+
+- `users` with soft delete. `company_id` is a nullable column with no foreign key yet.
+- `user_districts`, `login_attempts`.
+- Standard spatie/laravel-permission 8.3 tables: `permissions`, `roles`, `model_has_permissions`, `model_has_roles`, `role_has_permissions`.
+- `settings`, `fee_structures`.
+- Lookups: `provinces`, `districts`, `tehsils`, `qualifications`, `document_types`.
+- `User` model matches that table and keeps Sanctum `HasApiTokens` plus spatie `HasRoles`.
+
+### Notes
+
+- No seed data. Settings, fees, lookups, roles and the Super Admin are Step 5.
+- `users.company_id` foreign key is Step 3.
+- `sessions.user_id` stays an index, not a foreign key.
+- Permission pivot tables follow the package schema: composite primary keys, no `id`, and no timestamps. `permissions` and `roles` have timestamps.
+- Lengths the design does not state: lookup names `VARCHAR(150)`, district `code` `VARCHAR(10)`, login attempt email `VARCHAR(150)`, IP `VARCHAR(45)`, user agent `TEXT`.
+- Booleans with no stated default (`is_active` on lookups, `is_agriculture_degree`, `has_expiry`, `is_ui_editable`, `success`) are required and have no database default.
+- `email_verified_at` and `remember_token` are not on `users`.
+- App PHP constraint is `^8.3`, matching production and `spatie/laravel-permission` 8.3.
+
+## Step 3 — Migrations part 2
+
+Confirmed.
+
+### What was built
+
+- `persons`, `person_qualifications`.
+- `companies`, `company_people`, `company_premises`, `company_assets`, `products`, `company_products`.
+- `dealers`, `dealer_owners`.
+- `users.company_id` foreign key to `companies`, in its own migration.
+- `company_people.active_tech_person` stored generated column with a unique index, and the end-date check.
+
+### Notes
+
+- No seed data and no Eloquent models for these tables. Those come with the later API steps.
+- `normalized_name` is a normal indexed column. The application fills it. It is not generated by the database.
+- `person_qualifications.degree_document_id` and `company_products.approved_in_license_id` were columns only in this step. Step 4 adds their foreign keys.
+- `created_by` and `updated_by` are required foreign keys to `users` only on tables whose column list includes them.
+- `company_premises`, `company_assets`, `products`, and `person_qualifications` have timestamps and do not have `created_by`, `updated_by`, or `deleted_at`.
+- The Step 2 schema test no longer asserts that `users.company_id` has no foreign key, because this step adds that key.
+- The users migration file is `0000_01_01_000000_create_users_table.php`, so `users` is created before the framework tables and every later table. The table definition is unchanged. The company foreign key stays in `2026_09_27_180030_add_users_company_foreign_key.php`, after `companies` exists.
+
+## Step 4 — Migrations part 3
+
+Confirmed.
+
+### What was built
+
+- Workflow and checklists: `workflow_stages`, `checklist_templates`, `checklist_items`.
+- Applications: `license_applications` with stored `open_flag` and unique index `license_applications_one_open`, plus stage logs, checklist snapshots, penalties, deficiency letters, and challans.
+- `licenses` with `valid_to > valid_from`, status history, and number sequences.
+- `documents`, Laravel `notifications`, `activity_logs` (`created_at` only), `import_batches`, `import_exceptions`.
+- Foreign keys added for `degree_document_id`, `approved_in_license_id`, and `previous_license_id`.
+- `docs/DB_GRANTS.sql` for INSERT and SELECT only on `activity_logs`. It was not run.
+
+### Notes
+
+- No seed data and no Eloquent models.
+- `application_penalties.is_waived_or_reduced` is stored generated from `final_amount < standard_amount`.
+- `activity_logs` has no `updated_at`.
+- `notifications` uses Laravel's standard table, including a UUID primary key.
+- Lengths the design leaves shorthand: import `file_name` VARCHAR(255), `sheet_name` VARCHAR(100). `imported_by` is a required foreign key to `users`.
+- `license_status_history.from_status` and `to_status` use the license status enum.
+- One published checklist per entity and application type is an application rule. There is no extra generated column for it.
+- MySQL unique indexes allow multiple rows when `license_number_sequences.district_id` is NULL. Company sequences use a NULL district, so the application must still prevent a second company row for the same year.
+- The Step 3 schema test no longer asserts that the document and license foreign keys are absent, because this step adds them.
+
+## Step 5 — Seeders
+
+Confirmed.
+
+### What was built
+
+- Settings, provinces, qualifications, document types, workflow stages, four published checklist templates, roles and permissions, and the Super Admin.
+- Districts and tehsils from `docs/data/Dealers_List.xlsx`, sheet "By District". 38 districts after combining the case-only pair Jaffarabad / jaffarabad.
+- `fee_structures` stays empty. `DevFeeSeeder` is separate and is not called by `DatabaseSeeder`.
+- Models and factories for the seeded lookup, setting, workflow, and checklist tables.
+- `workflow_stages.sla_days` is now nullable so the submission stage can have no SLA.
+
+### Notes
+
+- Super Admin mobile is `03000000000` because no mobile was specified and the column is required.
+- `higher_approval` is inactive. Its skippable flag is false. Submission SLA is empty.
+- Spelling variants in the workbook were kept as separate districts: Jhal Magsi / Jhall Magsi, Killa saifullah / Killasaif ullah, Lasbela / Lasbella, Naseerabad / Nasirabad, Noshki / Nushki.
+- Quetta QTA, Barkhan BRK, Khuzdar KZD, Hub HUB. Other codes are generated and listed in the Step 5 report.
+
+## Step 6 — Authentication API
+
+Confirmed.
+
+### What was built
+
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`.
+- `POST /api/v1/auth/password/change`. A first login can succeed, and other routes stay blocked until the password is changed.
+- Lockout for 15 minutes after 5 failed attempts, with a row in `login_attempts` for every attempt.
+- Optional authenticator-app two-factor: setup, confirm, and disable. The secret is encrypted. Login asks for the code only after it is confirmed.
+- Activity log rows for login, failed login, logout, password change, and two-factor changes. One request shares one `batch_uuid`.
+
+### Notes
+
+- No forgot-password or reset-password API. `password_reset_tokens` stays unused. An admin reset is Step 8 (Users) and the company portal later.
+- A failed login for an unknown email is stored in `login_attempts` only. `activity_logs.subject_id` is required, so there is no activity row when there is no user.
+- Web login uses the Sanctum session cookie. `channel: mobile` returns a token and does not start a browser session.
+- Two-factor setup uses the browser session. The 30-minute timeout stays at Step 24. The session lifetime is still 120 minutes.
+- No new package. The authenticator code is checked in the application.
+
+## Step 7 — Frontend shell
+
+Confirmed.
+
+### What was built
+
+- Login screen (S1) without Forgot password. A first login goes to Change Password.
+- Main layout with the Section 10 sidebar. Each item is shown only when the user has the matching permission.
+- Empty dashboard. The other sidebar destinations open with a title only.
+- Route guard: signed-out users go to login, and a user who must change their password cannot open the dashboard.
+- The Step 1 health check remains at `/health`.
+
+### Notes
+
+- Licenses is shown for `licenses.issue`, `licenses.suspend`, `licenses.cancel`, or `licenses.restore`. There is no `licenses.view` permission.
+- Verification Queue is shown for `staff.verify`, `documents.verify`, or `products.verify`.
+- Settings children use `settings.manage`, `checklists.manage`, `workflow.manage`, `lookups.manage`, and `products_master.manage`.
+- Users & Roles uses `users.manage` or `roles.manage`. Activity Logs uses `activity_logs.view`. Data Import uses `imports.run` or `imports.resolve`.
+- The company portal menu is Step 21. A company user currently sees only the department items their permissions allow.
+- The notification bell on the dashboard sketch is not on this screen.
+
+## Step 8 — Users and roles
+
+Confirmed.
+
+### What was built
+
+- Users API for Super Admin (`users.manage`): list, show, create, update, reset password, and form options (roles, districts, companies).
+- Roles API: list roles, save the permission matrix (`roles.manage`), and the permission module list.
+- Screen S20: user list with search and Type / Role / Active filters, create and edit, role assignment, district scope for a District Officer, company link for a company user, password reset, and the role permission matrix.
+- Feature tests for list, create, district scope, company link, password reset, the matrix, and the Super Admin safeguards.
+
+### Notes
+
+- A new user always has `must_change_password` true. Reset sets a temporary password, sets that flag, and clears lockout. The password is not written to the activity log.
+- A company user must have a company. A staff user must not. A District Officer must have at least one district. Other roles have districts cleared.
+- You cannot deactivate yourself, remove your own Super Admin role, or remove `users.manage` or `roles.manage` from the Super Admin role.
+- Company Admin, Director, and District Officer get 403 on this API. Company Admin user management is the portal (Step 21).
+- The company dropdown is empty until companies exist (Step 12).
+- Browser check created an active user `screen-check@example.com` (Screen Check, Data Entry Operator). The check account `ui-check@example.com` was set inactive. Neither was deleted.
+
+## Step 9 — Settings, lookups, products master
+
+Confirmed.
+
+### What was built
+
+- Settings › General (S16): read and save the editable settings, including Enforce document requirements. The public verification URL stays hidden. Each changed setting is written to the activity log.
+- License number preview for the company, dealer, and application patterns.
+- Lookups (S19): districts, tehsils, provinces, qualifications, and document types. Search, active filter, create, and edit.
+- Products Master: generic products with concentration, formulation, category, and restricted flag.
+- A Registration Officer cannot open settings. A District Officer cannot open lookups. A Data Entry Operator cannot open the products master.
+
+### Notes
+
+- Fees have no screen and no write API.
+- These tables have no `deleted_at`. A row is retired by turning Active off. There is no hard delete.
+- Integer settings must be a whole number of 1 or more.
+- The preview uses the current year, serial 0046, district QTA, renewal `/R1`, and `C` for `{C/D}`.
+- Checklists and Workflow stay title-only until Step 10.
+- Browser check added inactive district Browser Check (`ZZX`) and active product Chlorpyrifos 40% EC. `ui-check@example.com` is inactive again. Enforce document requirements is false.
+
+## Step 10 — Checklist templates and workflow stages
+
+Confirmed.
+
+
+
+### What was built
+
+- Checklist templates (S17): the four families, a published version and at most one draft, new version, item add/edit/remove, drag reorder, copy from another template, preview, and publish.
+- A published or archived checklist cannot be edited (R-23). Publishing archives the previous published version and does not change an application's stored checklist (R-22).
+- Workflow stages (S18): company and dealer tabs. Applies, SLA days, permission, Active, and Skippable can be saved. Sequence and code stay fixed. Higher approval stays off until it is turned on here.
+- Feature tests for versioning, the published-template lock, copy, reorder, and workflow updates.
+
+### Notes
+
+- Reorder uses the browser drag behavior. No drag library was added.
+- Copy lists the other three published templates, so a draft is not filled again from its own published version.
+- A draft item can be removed. The row is deleted because `checklist_items` has no `deleted_at`. A published item cannot be removed.
+- Publishing needs at least one item.
+- The browser check created Company – New v2 and then removed that draft, so the four published version-1 templates are unchanged. Company deficiency SLA was saved as 6 and set back to 4. Higher approval is still off.
+
+## Step 11 — Persons
+
+Confirmed.
+
+### What was built
+
+- CNIC lookup `GET /api/v1/persons/lookup?cnic=` returns the person, roles across companies and dealer shops, and blocking conflicts.
+- Person profile `GET/PUT /api/v1/persons/{id}` and screen S8: search, identity fields, optional qualifications, documents placeholder, and this person's activity.
+- Rules R-01 to R-09, each with a feature test. A shared mobile number returns HTTP 409 until the officer confirms with a reason, which is logged.
+
+### Notes
+
+- There is no create-person API. A new person is created when staff or an owner is added CNIC-first in a later step. Lookup of an unknown CNIC creates nothing.
+- R-08 is enforced by `PersonRules::employmentDateErrors`. The end-employment screen is Step 13.
+- R-09 is enforced by `countsAsVerifiedStaff` and `blocksLicense`. License issuance is Step 18. A pending CNIC blocks a license only for current technical staff, CEO, directors, and dealer owners.
+- The photo file and the documents tab wait for Step 14. The activity tab lists this person only. The full activity log viewer is Step 22.
+- Browser check left two people: Screen Person One (`5440099900001`, father name Browser Check, mobile `03001110001`, B.Sc Agriculture, Agriculture University, 2012) and Screen Person Two (`5440099900002`, mobile `03001110002`). A shared-mobile warning was confirmed and the first mobile was set back. `ui-check@example.com` is inactive again. The seeded Super Admin still must change password.
+
+## Step 12 — Companies
+
+Confirmed.
+
+### What was built
+
+- Companies API: list, show, create, update, duplicate check, soft delete with a reason, and Excel export of the filtered list.
+- Screen S3: search (name, code, NTN), status, PCPA, and expiry filters, pagination, row opens the company, Export Excel, New Company.
+- Screen S4: company fields, similar-name warning while typing, save that asks for a reason on HTTP 409, and delete with a reason on the edit form.
+- Rules R-11 (NTN unique), R-12 (similar name), R-28 (company users see only their own company), R-31 (soft delete with a logged reason), and an activity row for create, update, delete, warning override, and export.
+- Feature tests in `CompaniesTest`.
+
+### Notes
+
+- `maatwebsite/excel` 4.0.3 was added (clarification B18). Excel columns match the list: Code, Name, NTN, Expiry, Status.
+- Company codes follow the schema example `C-0001`. Status is not on the S4 form. A new company is `unlicensed`. Status changes later (nightly job, Step 19; suspend and cancel, Step 18).
+- Expiry is the current license `valid_to` (latest non-superseded, not deleted, `licensable_type` company). The Expiry filter is All / Expiring / Expired. Expired means `valid_to` is before today. Expiring means `valid_to` is from today through today plus `alert_amber_days` (default 90). The Status filter is the company status enum, separate from that.
+- Dates in JSON are `YYYY-MM-DD`. The screen and Excel show `DD-MM-YYYY`.
+- Similar name warns when normalized names are equal, one contains the other and the shorter is at least 6 characters, or `similar_text()` is at least 85%. Normalization lowercases, removes punctuation, drops the words pvt, ltd, private, and limited, and collapses spaces.
+- A duplicate NTN is HTTP 422 with "This NTN already exists." and does not name the other company. A similar name is HTTP 409 until `confirm_warnings` and a reason of at least 3 characters.
+- Provinces come from the companies list meta, so Data Entry can create a company without `lookups.manage`.
+- Who can create and edit: Super Admin, Director, Registration Officer, Data Entry. District Officer and Auditor can view and export. Company Admin and Company Staff can view their own company only. `companies.delete` is Super Admin only. Data Entry does not have `exports.run`.
+- Export is `GET /api/v1/exports/companies` and needs `exports.run` and `companies.view`. The activity row uses subject type `company` and subject id `0`.
+- Browser check created Browser Agro Division (`C-0001`, Unlicensed, Quetta, Balochistan), saw the similar-name warning for "Browser Agro", exported Excel, then soft-deleted that company with reason "Browser check row, no longer needed". The row remains in MySQL with `deleted_at` set. The list is empty. `ui-check@example.com` is inactive again. The Super Admin password was not changed.
+
+## Step 13 — Company profile
+
+Confirmed.
+
+## Step 14 — Documents
+
+Confirmed.
+
+### What was built
+
+- Company documents on the private local disk: upload, replace (new version, old kept), metadata update, history, verify, and a 5-minute download link.
+- File type is taken from the file contents (PDF, JPG, PNG). Size uses `max_upload_size_mb` (seeded 10).
+- R-15: the same SHA-256 on a different company, dealer, or person warns officers only. Company users are not warned. A repeat on the same company is allowed. Soft-deleted files do not count.
+- The company profile Documents tab: category filter, upload, view, history, replace, edit, and verify.
+- Company activity includes document rows.
+- Feature tests in `DocumentsTest`.
+
+### Notes
+
+- Allowed types are `application/pdf`, `image/jpeg`, and `image/png`, detected with `finfo`, not the extension. The message is "This file type is not allowed. Upload a PDF, JPG, or PNG."
+- A download link lasts 5 minutes. Each View click creates a new link. It is not burned after the first open. The activity row is written when the link is created, and the signed URL is not stored in the log.
+- Files stay on the private `local` disk (`storage/app/private`). There is no document delete API. Replace keeps the old version and the list shows the current version only.
+- Office and portal uploads start as Pending. Verify is `POST /documents/{id}/verify` for `documents.verify`. Data Entry can upload and download, not verify. Auditor can download only. The verification queue is Step 20. There is no reject action here.
+- The company upload list is active document types that apply to company or any. CNIC copy, degree, and appointment letter stay person types, so they are not in that dropdown. The category filter also includes Inspection and Qualification so those seeded categories are not hidden.
+- This step attaches documents to companies only. Person documents (S8, and the S6/S7 file fields) and dealer documents wait. Degree, CNIC, and appointment uploads on S6, and the supporting document on S7, are still not on those forms.
+- Browser check left a verified document on Profile Agro House (`C-0002`): title "Browser check incorporation", type Certificate of Incorporation, version 1, uploaded from the office. The file is on the private disk. The company, its warehouse, Profile Brand, and Screen Person One's current employment were not changed.
+
+### What was built
+
+- Company profile S5: Overview, People, Tech Staff, Premises (with Assets), Products, and Activity. Licenses, Applications, Documents, and Portal Users are empty.
+- CNIC-first add for technical staff (S6) and for CEO, directors, contacts, and authorized representatives. An existing CNIC is linked. A new CNIC creates the person.
+- End employment (S7) with R-08. A warning shows when verified technical staff would fall below the minimum.
+- Verify on a current pending technical-staff row, for `staff.verify`.
+- Premises and optional assets. Products with R-14 (brand unique within the company).
+- Feature tests in `CompanyProfileTest`.
+
+### Notes
+
+- New Application, Suspend, and Certificate are on the header and do nothing. Those actions are later steps.
+- Degree, CNIC, and appointment uploads on S6, and the supporting document on S7, wait for documents (Step 14).
+- The end-employment reason is one text field. The sketch shows a dropdown, and the design does not list the choices.
+- Premises and assets have no `deleted_at`. A premise is retired by turning Active off. An asset can be edited and cannot be removed.
+- Office staff are saved as Pending (`source` office) until Verify. A company user's staff are saved as Pending with `source` portal, and the other company's name is not shown to them.
+- A company product is saved as Pending. Approving it is the verification queue (Step 20). A removed brand cannot be used again, because the unique index still includes the deleted row.
+- Clicking a company in the list opens this profile. Edit opens the Step 12 form.
+- Browser check left Profile Agro House (`C-0002`, Unlicensed, Quetta, Balochistan). Screen Person One (`5440099900001`) is verified current technical staff there from 28-09-2026, so that person cannot be added as technical staff anywhere else until this employment is ended. The company also has a Quetta warehouse at Kasi Plaza and pending product Profile Brand (Chlorpyrifos 40% EC). `ui-check@example.com` was not changed.
+
+## Step 15 — Dealers
+
+Confirmed.
+
+### What was built
+
+- Dealers API: list, show, create, update, duplicate check, soft delete with a reason, owners, activity, and Excel export.
+- Screen S9: search (shop name or code), district, tehsil, and status filters, pagination, row opens the dealer, Export Excel, New Dealer.
+- Screen S10: Overview, Owners (CNIC-first add and end date), Documents, and Activity. Licenses and Applications say they are not available yet.
+- Rules R-03 (current technical staff cannot be an active owner, and the reverse), R-04 (one person may own several shops; a second open ownership of the same shop is blocked), R-13 (same normalized shop name or address in the same district warns), and R-08 on owner start and end dates.
+- Dealer documents reuse the private document store. Upload types are those that apply to dealer or any.
+- Feature tests in `DealersTest`.
+
+### Notes
+
+- R-13 is an exact match after normalization, inside the same district. It is not the company 85% similar-name rule. The shop name uses the same normalization as company names. The address is lowercased, punctuation is removed, and spaces are collapsed. There is no stored normalized address. The same name in another district is allowed. Soft-deleted dealers do not warn. Confirming needs a reason of at least 3 characters and is logged as `warning_overridden`.
+- A new dealer is `unlicensed`. Status and dealer code are not accepted on save. The code is `D-{district code}-0001` (4 digits), unique including soft-deleted rows, and it does not change if the district is edited later.
+- A District Officer only sees and writes dealers in assigned districts. Another district is HTTP 422 with "Choose a district assigned to you."
+- Owners have no verification status and no end reason. Ending an ownership sets the end date only. A person who is current technical staff is blocked with the existing staff message. Mobile already used by someone else warns for a new person only (R-07).
+- Legacy registration number and notes stay in the table and are not on the form or the write API. Import is Step 23. Email, mobile, and GPS are on the form.
+- New Application, Suspend, and Certificate are on the header and disabled. Licenses and applications are later steps.
+- `GET /dealers` without `dealers.view` is HTTP 403. A company user opening a dealer document URL gets HTTP 404, because the dealer is hidden before the permission check on that route.
+- Export is `GET /api/v1/exports/dealers` and needs `exports.run` and `dealers.view`. Columns are Code, Shop Name, District, Expiry, Status. The activity row uses subject type `dealer` and subject id `0`.
+- Browser check left Browser Zarai Markaz (`D-QTA-0001`, Unlicensed, Quetta, Jinnah Road). Owner Browser Owner (`5440099900003`, mobile `03001110003`) is current from 28-09-2026. Document "Browser check dealer letter" (type Other, version 1, Pending) is on the private disk. Profile Agro House, its incorporation document, and Screen Person One's employment were not changed. The Super Admin password was not changed.
+
+## Step 16 — Applications part 1
+
+Confirmed.
+
+### What was built
+
+- Office applications for a company or dealer: new or renewal, numbered from `application_no_pattern`, with the published checklist copied onto the application.
+- Screen S11: applicant kind, type, stage, status (default Open), and district filters. New Application. A row opens the application.
+- Screen S12: diary number, received date, total pages, stage rail, Complete Stage, Skip when the stage allows it, Checklist (verify, deficient with remarks, N/A, upload), Deficiency letters with a PDF, and the activity log. Fees says the tab is not available yet. Issue License stays disabled.
+- Rules R-10 (one open application), R-18 (renewal window), R-22 (checklist locked at filing), R-26 (stages in order, inactive stages skipped, progress review skipped on a new application), and R-27 (the open stage is flagged when its due date has passed).
+- Reject (`applications.reject`) and Withdraw (`applications.process`) close the application so another one can be filed.
+- Feature tests in `ApplicationsTest`.
+- `barryvdh/laravel-dompdf` 3.1.2 for the deficiency letter PDF (clarification B18).
+
+### Notes
+
+- An office application is filed straight into the submission stage with status `submitted`. A portal draft waits for the portal (Step 21). Restoration is not offered.
+- The number follows the setting, seeded as `APP-{C/D}-{YYYY}-{SERIAL:4}`. The serial is separate for companies and dealers, includes soft-deleted numbers, and starts at 0001. A stage with no SLA (submission) stores the entry time as the due time and is never marked overdue.
+- A renewal uses the latest license that is not superseded. It is blocked until `renewal_window_days` before that license's end date. Days after expiry are stored as `late_days`. A new application does not set `previous_license_id`.
+- Completing the fee stage looks up the registration or renewal fee for the submission date. If none is configured, the stage stays put and the message is "Fee is not configured for this date. Contact the system administrator." Challans, penalties, and the Fees tab are Step 17. Entering issuance does not set `ready_to_issue`; that waits for the R-19 checks when a license can be issued (Step 18).
+- The deficiency stage can be completed when no item is deficient and no letter is open. Otherwise the officer resolves the items or skips the stage with a reason. A letter is numbered `DEF-{YYYY}-{SERIAL:4}`, the reply date is `deficiency_reply_days` after the issue date, and the PDF is on the private disk. While a letter is open the status is `deficiency_issued`.
+- A District Officer sees dealer applications in assigned districts only, and does not see company applications. Data Entry can file an application and upload a checklist file, and cannot verify items or move a stage that needs `applications.process`.
+- Company and dealer profiles enable New Application for a user who can create applications. Suspend and Certificate stay disabled.
+- Browser check left application `APP-C-2026-0001` for Profile Agro House, diary `B-16`, type New, status deficiency issued, current stage Deficiency. Annex A is deficient ("Signature is missing."). Letter `DEF-2026-0001` is on the private disk. That company cannot have a second open application until this one is withdrawn, rejected, or issued. The dealer Browser Zarai Markaz was not changed.
+
+## Step 17 — Applications part 2
+
+Confirmed.
+
+### What was built
+
+- The Fees tab of S12: the fee looked up from `fee_structures`, manual penalties, challans, and the total payable.
+- A penalty is saved only when an officer enters it (R-16). The screen shows days late and, for a company, months in the last license period with fewer verified technical staff than the minimum.
+- A final amount below the standard amount needs a waiver reason. A user with `penalties.waive` approves it (R-17). The fee stage cannot be completed while that approval is waiting.
+- A challan number is unique (R-21). Verification is `challans.verify`. The paid figure is the sum of verified challans.
+- Feature tests in `ApplicationsFeesTest`.
+
+### Notes
+
+- The fee line uses the registration or renewal row for the submission date. It is stored on the application when the fee stage is entered or completed. Until then the tab says the amount is recorded at that stage, and the total payable is the penalties entered so far.
+- The system does not insert a penalty by itself. A dealer has no "no technical staff" reference rate. Pending or CNIC-pending staff are not counted in the months helper. The last license period is the application's previous license, or otherwise the latest license that is not superseded.
+- There is no edit or delete for a penalty or a challan. One challan line is stored: registration fee, renewal fee, or other for a restoration application.
+- Completing the fee stage still does not require the verified challans to cover the total. That check is part of issuing a license (Step 18). Issue License stays disabled.
+- A District Officer can enter a penalty on a dealer application in an assigned district, and cannot verify a challan. A Registration Officer can enter a penalty and verify a challan, and cannot approve a waiver.
+- Development fee rates were loaded with `DevFeeSeeder` so the screen could show a fee. The main seeder still leaves `fee_structures` empty. Company registration is Rs 50,000 from 01-01-2020.
+- Browser check left a penalty on `APP-C-2026-0001`: type Other, basis "Screen check", standard Rs 1,000, final Rs 500, order `SO-16`, waiver pending. Challan `TR-B16`, National Bank, Quetta, 28-09-2026, Rs 500, status pending. The fee stage is still upcoming, so the stored fee is 0 and the total payable is Rs 500. The application is still open.
+
+## Step 18 — License issuance
+
+Confirmed.
+
+### What was built
+
+- Issuing a license from the issuance stage: R-19 checks, R-20 document cover (blocker when enforcement is on, warning when it is off), validity dates (R-24), superseding earlier licenses (R-25), and the license number from settings.
+- Documents status (R-20a, R-20b). With enforcement off, a license can be issued while required items are still outstanding. The checklist stays open, and the license becomes complete when the last required item is verified or marked N/A.
+- A placeholder certificate PDF with a QR code, stored on the private disk. Public page `/verify/{token}` (Section 12), limited to 30 requests a minute per IP.
+- Licenses list S15: filters, Excel export, certificate download, suspend, cancel, and restore. Company and dealer Licenses tabs, and the Certificate and Suspend buttons on those profiles.
+
+### Notes
+
+- The certificate says it is a placeholder layout. The official format is not in use yet.
+- The QR code uses `public_verify_base_url`. That setting is seeded and is not edited on the settings screen. The SPA page is `/verify/{token}` and works without a login.
+- Company users are not notified when a license is issued. In-app notifications are Step 19. The nightly job that sets `expiring` is also Step 19. On issue, suspend, cancel, and restore, the company or dealer status changes immediately. A party that is already suspended or cancelled stays that way when a new license is issued. Restore sets the license and the party to active when `valid_to` is today or later, otherwise expired.
+- A renewal filed on time starts the day after the previous license ends. A late renewal, or a new license, starts on the issue date. `valid_to` is the start date plus the period in months, minus one day. The officer does not type the dates.
+- Issuing supersedes every earlier license for that party that is not already superseded or cancelled. A cancelled license stays cancelled. The history reason is "Superseded by {number}."
+- The number uses the seeded patterns. `{YYYY}` is the year of issue. `{RENEWAL}` is blank for a new license and `/R{n}` for a renewal. The serial is per entity, district, and year, and the preview does not increment it. A company sequence uses a null district. MySQL treats those nulls as distinct in the unique index; the code locks the row with `whereNull('district_id')`. If saving the license fails after the serial is taken, that number is not reused.
+- The certificate file is `certificates/{token}.pdf` because license numbers contain slashes. Download is a 5-minute link and is logged. A missing file returns "Certificate not found."
+- Completing the issuance stage from Complete Stage stays blocked. The Issue action closes that stage and sets the application to issued.
+- Approved company products with no license yet are stamped with the new license id. Dealers have no products.
+- Suspend, cancel, and restore need a reason, an order number, and an effective date. The status changes immediately. The effective date is stored. A cancelled license can be restored by a user with `licenses.restore`.
+- `GET /licenses` is available to users who can view companies or dealers, or who can issue, suspend, cancel, or restore. A District Officer sees every company license and dealer licenses in assigned districts. The Licenses menu is only for users with a license action permission.
+- Browser check: the Licenses list loads and shows no rows. `/verify/not-a-real-token` shows "Certificate not found." Issue License stays disabled on `APP-C-2026-0001` because that application is still on the deficiency stage. Profile Agro House and Browser Zarai Markaz have empty Licenses tabs, and Suspend and Certificate stay disabled. The pending waiver and challan `TR-B16` were not changed. No license was issued in the browser.
+
+## Step 19 — Nightly status job and dashboard
+
+Confirmed.
+
+### What was built
+
+- Nightly command `statuses:refresh` at 00:30. It expires licenses whose end date is before today, then sets each company and dealer to suspended or cancelled (kept), unlicensed, expired, expiring, or active.
+- Dashboard S2: company, dealer, and license cards, applications in process, pending verification, documents incomplete, quick search, and expiry alerts. Each count opens the matching list.
+- In-app notifications with a bell. A company user is notified when a license is issued, when a deficiency letter is issued, and once when the renewal window opens.
+
+### Notes
+
+- License status becomes `expired` only when it was `active` and `valid_to` is before today. A suspended or cancelled license is left as it is. A company or dealer that is already suspended or cancelled keeps that status. `expiring` uses `alert_amber_days` (seeded 90). The red and amber alert chips use `alert_red_days` (30) and `alert_amber_days` (90).
+- The current license is the latest one that is not superseded. Renewal-window notices go to active company users and are not repeated for the same license. A renewal that is not rejected or withdrawn counts as already applied.
+- A District Officer sees every company on the company card, and only dealers in assigned districts. Company users see their own company. Application counts follow application visibility, so a District Officer does not see company applications.
+- The same job marks an open stage overdue when its due time has passed, so the SLA card is current after 00:30. The scheduler must be running (`php artisan schedule:work` or a system cron for `php artisan schedule:run`).
+- Pending verification counts staff, documents, and products that are still pending. Open Queue goes to the verification screen, which is Step 20. Notices for a portal submission, and for approving or rejecting one, start with that queue and the portal.
+- Quick search needs at least 2 characters. CNIC and person mobile results need `persons.view`. District results for a District Officer are the assigned districts.
+- Browser check: the dashboard shows 1 company, 1 dealer, 1 new application, and 1 open deficiency. Searching "Profile" finds Profile Agro House. Notifications is empty for the Super Admin. Documents incomplete is empty. The companies list opens from the total, and the applications list opens on Deficiency issued for `APP-C-2026-0001`. No statuses were changed in the browser.
+
+## Step 20 — Verification queue
+
+Confirmed.
+
+### What was built
+
+- Verification queue S14: Staff, Documents, and Products tabs with counts, a review panel, Approve, and Reject with a reason (R-30).
+- `GET /api/v1/verifications`, `GET /api/v1/verifications/{type}/{id}`, and `POST .../approve` and `.../reject`.
+- Company users are notified when their staff, document, or product is approved or rejected.
+- Feature tests in `VerificationsTest`.
+
+### Notes
+
+- The queue lists every pending current technical-staff row, every pending current company or dealer document, and every company product with status pending. That includes office entries, so Profile Brand and the dealer letter appear before the portal exists. Checklist and challan files stay on the application and are not in this queue. The dashboard document count also includes those files, so the two counts can differ when a checklist file is still pending.
+- Approve uses the same staff and document verify path as the company and dealer profiles. Those Verify buttons are unchanged. Approving a product sets status approved and does not stamp a license. The license stamp still happens at issuance.
+- A company product has no rejected status and no rejection reason column. Reject sets status to withdrawn and stores the reason in remarks. Staff and documents use their rejected status and rejection reason.
+- A District Officer can review documents and products. Company products are not limited by district. Dealer documents are limited to assigned districts. A District Officer cannot review staff. Data Entry can open neither the queue nor an approve action.
+- A company user is notified on a company staff, document, or product decision. A dealer document has no company users to notify. Notices when something arrives from the portal are Step 21.
+- Browser check: Staff 0, Documents 1 (Browser Zarai Markaz, Browser check dealer letter, 28-09-2026, submitted via office), Products 1 (Profile Agro House, Profile Brand). The review panels opened. Neither row was approved or rejected. Dashboard pending counts still match. Open Queue opens this screen.
+
+## Step 21 — Company portal
+
+Confirmed.
+
+### What was built
+
+- Company portal P1–P7 in the same application, with its own menu: dashboard, read-only company information, staff, documents, products, applications and the renewal wizard, and users.
+- Portal API under `/api/v1/portal`. Every query uses the signed-in company. Company users who open an office address are sent back to the portal.
+- Staff, documents and products submitted here are saved as Pending. Officers with the Super Admin, Director or Registration Officer role are notified.
+- A Company Admin can add a company user, reset that user's password, and deactivate them.
+- Feature tests in `PortalTest`.
+
+### Notes
+
+- Company information is read-only. The contact line is the one in the P2 sketch: 081-9211868, dppb2018@gmail.com.
+- The renewal wizard saves a draft, then submits it into the submission stage. Before the renewal window, or without a current license, Start renewal stays disabled. The declaration sentence is "I certify that the information and documents in this application are correct." The design points at Form-A and does not quote the sentence.
+- A rejected product is still stored as withdrawn, from Step 20. The portal has no withdraw button. To withdraw a product, the company contacts the Directorate.
+- Company Staff can use staff, documents and products. They cannot submit a renewal or open Users.
+- Browser check added company user Portal Check (`portal.check@example.com`) on Profile Agro House, Company Admin, password change not required. The portal showed that company only: one verified staff member, the incorporation document, Profile Brand still pending, and application `APP-C-2026-0001` with deficiency letter `DEF-2026-0001`. Start renewal was disabled because there is no current license. No staff, document, product or renewal was submitted. The office user is sent away from `/portal`. The browser was left signed in as Portal Check.
+
+## Step 22 — Activity log viewer
+
+Confirmed.
+
+### What was built
+
+- Activity log screen S21: filters for user, action, module, and date, with the field, old value, new value, and reason in the detail row.
+- `GET /api/v1/activity-logs` for users with `activity_logs.view`. `GET /api/v1/exports/activity-logs` for users who can also run exports. The export is itself written to the log.
+- A test that create, update, delete, login, download, export, approval, and warning override each appear in the log (R-32).
+
+### Notes
+
+- The user list on this screen comes from the log itself, so an Auditor can filter by user without the users permission. Data Entry and company users receive 403. A Registration Officer can export other lists but not this one.
+- Times and the date filter use UTC, the same clock stored on the row. A time after midnight in Quetta can still fall on the previous UTC date.
+- Password fields are left out of the detail and the Excel file. A warning reason, rejection reason, end reason, or delete reason is shown on the Reason line.
+- Settings changes and published checklists stay logged as `updated`, as in the earlier steps. The design also names `settings_changed` and `template_published`. Those two words are in the action filter and are not written by current actions.
+- Company, dealer, and application activity tabs are unchanged and still omit old and new values.
+- Browser check: signed out of the company portal and opened Activity Logs as the Super Admin. The list showed 55 rows, then 56 after the export. Details on the deficient checklist row showed status pending to deficient, and remarks "Signature is missing." Filtering to Masood Anwar, login, module user, and 28-09-2026 left 2 rows. Export Excel downloaded that filter and logged "Exported the activity log." Next page showed rows 26–50. No company, product, document, waiver, or application was changed. The browser was left signed in as the Super Admin on the activity log.
+
+## Step 23 — Data import
+
+Confirmed. The company workbook still leaves exceptions for bad dates, similar names, staff cells that are not names, and CEO CNICs. Those were left as they are when this step was closed.
+
+### What was built
+
+- Data import screen S22: upload an Excel file, choose Companies or Dealers, Dry Run or Run, then review exceptions with Skip, Fix, Merge, New, or Add CNIC.
+- `POST /api/v1/imports`, `POST /api/v1/imports/{id}/run`, `GET /api/v1/imports/{id}`, `GET` and `PUT /api/v1/import-exceptions/{id}`. `GET /api/v1/imports` lists batches for the screen. Super Admin only (`imports.run`, `imports.resolve`).
+- Company workbook: Company Details, Employ details, and Name Of Products, joined by company name. Dealers: By District only.
+- Company legacy licenses from Licenses Exp. Dealer day, Month, and Year columns are ignored, and the yearly dealer sheets are ignored (B21). Dealers stay unlicensed.
+
+### Notes
+
+- A dry run stores the batch and its exceptions and does not create companies or dealers. Run writes rows only when every exception is skipped, fixed, merged, or accepted as new. The table shows Dry run until that write, then Imported.
+- Company sheets have no legal type, so imported companies are saved as `other`. City and province are taken from a district or province name in the address. When the sheet has no address, city, province, or phone for a person, the import stores a temporary value and says so in the company notes: address or city `Not recorded`, province Balochistan, mobile `00000000000`. A dry plan of the real company file then has 143 rows ready and 109 exceptions (bad dates, similar names or NTNs, staff values that are not names, and CEO CNICs). Upload the file again to use this. An earlier dry run still has the old exceptions.
+- Imported people are pending. Technical staff and dealer owners without a CNIC are CNIC-pending and are not verified staff. A CEO with a blank or invalid CNIC is an exception. A staff cell that is only a number or "Nill" is an exception. An empty staff cell is ignored.
+- Products are saved as needs mapping, not approved. There is no legacy certificate PDF. CSR, RD, dealer renewal, registration, and the unlabeled fee column stay in legacy notes. A company license start date is the expiry minus the 12-month license period, plus one day.
+- The real workbooks were planned only. They were not written into the database. Browser check used a one-row company file: dry run, skip the bad expiry, then Run. That created company `C-0003` Browser Import House, NTN 9998881, Quetta, unlicensed, with no license. Profile Agro House, its product, the dealer, the application, and the waiver were left as they were. The browser was left signed in as the Super Admin on Companies.
+
+## Step 24 — Final hardening and review
+
+Waiting for confirmation.
+
+### What was built
+
+- Web sessions expire after 30 minutes without a request. An expired session returns the screen to the login page.
+- Login is limited to 30 attempts per minute per address, on top of the 15-minute lock after 5 wrong passwords. Signed-in API calls are limited to 60 per minute per user.
+- HTTPS responses send HSTS. Local HTTP does not.
+- `README.md` with setup, deployment, and the R-01 to R-32 checklist.
+
+### Notes
+
+- Password reset links are not built. Clarification C4 keeps password resets as a temporary password set by an administrator. The unused reset-token expiry in Laravel's config remains 60 minutes.
+- Daily backups, the monthly restore test, the cloud firewall, and separate staging data are deployment steps in the README. `docs/DB_GRANTS.sql` is still not run.
+- Tests raise the rate limits so the suite is not blocked. Production uses 30 login attempts and 60 API calls per minute.
+- Browser check: the signed-in session was removed, Dealers was opened, and the screen returned to the login page. No company, dealer, product, document, waiver, or application was changed. The browser was left on the login page.
+
+## Follow-up — Record a previous license
+
+Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- A screen to record a license that was already granted, for one company or one dealer.
+- Open it from Licenses, or from the Licenses tab on a company or dealer profile. Super Admin and Director (`licenses.issue`).
+- The end date can be 31 December of the current year or any earlier date. The start date is the end date minus the license period in Settings, plus one day.
+- The row is a legacy license: no application, no certificate, documents status not applicable. The company or dealer status is refreshed from the current license. A suspended or cancelled party stays that way. An earlier license for the same party is marked superseded when this one ends later. A later license already on file stays the current one.
+
+### Notes
+
+- This screen is not in the Phase 1 screen list. It uses the existing `licenses` table and the same dates as the company import.
+- `GET /api/v1/licenses/previous` and `POST /api/v1/licenses/previous`.
+- The import path is unchanged. Dealer sheets still do not create licenses. Those dealer licenses can be entered on this screen.
+
+## Follow-up — Certificate QR opens the verification page
+
+Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was fixed
+
+- The certificate QR was encoding `https://<domain>/verify/{token}`. A phone opens the browser for that text, then cannot load it because `<domain>` is not an address.
+- While that setting still contains `<domain>`, the QR uses `FRONTEND_URL` (`http://localhost:5173` locally). A real value in `public_verify_base_url` is used as written.
+- The QR is encoded as ISO-8859-1 so a phone camera reads the address as a normal link.
+- Opening `/verify/{token}` while signed out no longer jumps to the login page. Checking `/auth/me` returns 401 for a guest, and that check was being treated as an expired session.
+- The stored certificate for `DPP/C/2026/0001` was rewritten with the new QR. Download it again before scanning.
+
+### Notes
+
+- A phone cannot open `localhost` on this computer. For a scan from a phone, set `FRONTEND_URL` in `backend/.env` to an address the phone can reach, then download the certificate again.
+- Browser check: `http://localhost:5173/verify/rew27oetbYtaS9XMbhrJIHqRNc2whNvmvSwyBu6j` stays on that page and shows Daily Web Solutions, `DPP/C/2026/0001`, active, 29-09-2026 to 28-09-2027. An unknown code stays on the page and shows "Certificate not found." `/companies` while signed out still returns to login.
+
