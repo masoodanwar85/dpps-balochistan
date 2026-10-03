@@ -1,11 +1,19 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api, firstError, upload } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
+
+function batchStatus(batch) {
+  if (batch.committed) return 'Imported'
+  if (batch.status === 'failed') return 'Failed'
+  return 'Dry run'
+}
 
 const auth = useAuthStore()
 const canRun = computed(() => auth.can('imports.run'))
@@ -171,112 +179,121 @@ onMounted(loadBatches)
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError || formError" variant="destructive">
       <AlertTitle>{{ loadError || formError }}</AlertTitle>
     </Alert>
 
-    <form v-if="canRun" class="flex flex-wrap items-end gap-2" @submit.prevent="submit('dry_run')">
-      <div class="grid gap-1">
-        <Label for="import-type">Type</Label>
-        <select id="import-type" v-model="importType" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Type">
-          <option value="companies">Companies</option>
-          <option value="dealers">Dealers</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="import-file">Upload Excel</Label>
-        <Input id="import-file" type="file" accept=".xlsx" aria-label="Upload Excel" @change="onFile" />
-      </div>
-      <Button type="submit" variant="outline">Dry Run</Button>
-      <Button type="button" @click="submit('run')">Run</Button>
-      <p class="w-full text-sm text-muted-foreground">Run writes the rows when the workbook has no exceptions. A workbook with exceptions stays a dry run until those rows are skipped, fixed, merged, or accepted as new.</p>
-    </form>
-
-    <div class="overflow-x-auto rounded-xl border bg-card">
-      <table class="w-full text-left text-sm">
-        <thead class="border-b text-muted-foreground">
-          <tr>
-            <th class="px-3 py-2 font-medium">File</th>
-            <th class="px-3 py-2 font-medium">Rows</th>
-            <th class="px-3 py-2 font-medium">Imported</th>
-            <th class="px-3 py-2 font-medium">Exceptions</th>
-            <th class="px-3 py-2 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="batches.length === 0">
-            <td class="px-3 py-3 text-muted-foreground" colspan="5">No imports.</td>
-          </tr>
-          <tr v-for="batch in batches" :key="batch.id" class="cursor-pointer border-b last:border-0" @click="openBatch(batch)">
-            <td class="px-3 py-2">{{ batch.file_name }}</td>
-            <td class="px-3 py-2">{{ batch.total_rows }}</td>
-            <td class="px-3 py-2">{{ batch.committed ? batch.success_rows : '—' }}</td>
-            <td class="px-3 py-2">{{ batch.exception_rows }}</td>
-            <td class="px-3 py-2">{{ batch.committed ? 'Imported' : (batch.status === 'failed' ? 'Failed' : 'Dry run') }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <template v-if="selected">
-      <div class="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 class="text-lg font-semibold">{{ selected.file_name }}</h2>
-          <p class="text-sm text-muted-foreground">{{ selected.sheet_name }} · {{ selected.committed ? 'Imported' : 'Dry run' }} · {{ selected.open_exceptions }} open</p>
+    <PageSection v-if="canRun" accent="amber" eyebrow="Imports" title="Upload workbook">
+      <form class="flex flex-wrap items-end gap-2" @submit.prevent="submit('dry_run')">
+        <div class="dpps-field">
+          <Label for="import-type">Type</Label>
+          <select id="import-type" v-model="importType" class="dpps-select" aria-label="Type">
+            <option value="companies">Companies</option>
+            <option value="dealers">Dealers</option>
+          </select>
         </div>
-        <div class="flex flex-wrap items-end gap-2">
-          <div class="grid gap-1">
-            <Label for="issue-filter">Issue</Label>
-            <select id="issue-filter" v-model="issue" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Issue" @change="openBatch(selected)">
-              <option v-for="[value, label] in issueTypes" :key="value || 'all-issues'" :value="value">{{ label }}</option>
-            </select>
-          </div>
-          <div class="grid gap-1">
-            <Label for="status-filter">Status</Label>
-            <select id="status-filter" v-model="status" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Status" @change="openBatch(selected)">
-              <option v-for="[value, label] in statuses" :key="value || 'all-statuses'" :value="value">{{ label }}</option>
-            </select>
-          </div>
-          <Button v-if="canRun" type="button" :disabled="selected.committed || selected.open_exceptions > 0" @click="runBatch">Run</Button>
+        <div class="dpps-field">
+          <Label for="import-file">Upload Excel</Label>
+          <Input id="import-file" type="file" accept=".xlsx" aria-label="Upload Excel" @change="onFile" />
         </div>
-      </div>
+        <Button type="submit" variant="outline" size="sm">Dry Run</Button>
+        <Button type="button" size="sm" @click="submit('run')">Run</Button>
+        <p class="w-full text-sm text-muted-foreground">Run writes the rows when the workbook has no exceptions. A workbook with exceptions stays a dry run until those rows are skipped, fixed, merged, or accepted as new.</p>
+      </form>
+    </PageSection>
 
-      <div class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
+    <PageSection accent="slate" eyebrow="History" title="Import batches" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
             <tr>
-              <th class="px-3 py-2 font-medium">Row</th>
-              <th class="px-3 py-2 font-medium">Issue</th>
-              <th class="px-3 py-2 font-medium">Details</th>
-              <th class="px-3 py-2 font-medium">Action</th>
+              <th>File</th>
+              <th>Rows</th>
+              <th>Imported</th>
+              <th>Exceptions</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="selected.exceptions.length === 0">
-              <td class="px-3 py-3 text-muted-foreground" colspan="4">No exceptions.</td>
+            <tr v-if="batches.length === 0">
+              <td class="px-3 py-3 text-muted-foreground" colspan="5">No imports.</td>
             </tr>
-            <tr v-for="row in selected.exceptions" :key="row.id" class="border-b align-top last:border-0">
-              <td class="px-3 py-2">{{ row.row_no }}</td>
-              <td class="px-3 py-2">{{ row.issue_type }}</td>
-              <td class="px-3 py-2">{{ row.issue_details }}</td>
-              <td class="px-3 py-2">
-                <p v-if="row.resolution_status !== 'open'" class="text-muted-foreground">{{ row.decision || row.resolution_status }}</p>
-                <div v-else-if="canResolve" class="grid gap-2">
-                  <Input v-if="row.issue_type === 'possible_duplicate'" v-model="row.targetId" placeholder="Existing record id" aria-label="Existing record id" />
-                  <Input v-for="field in row.fields_needed" :key="field" v-model="row.fieldValues[field]" :placeholder="field" :aria-label="field" />
-                  <div class="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'skip')">Skip</Button>
-                    <Button v-if="row.issue_type === 'possible_duplicate'" type="button" variant="outline" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'merge')">Merge</Button>
-                    <Button v-if="row.issue_type === 'possible_duplicate'" type="button" variant="outline" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'new')">New</Button>
-                    <Button v-if="row.fields_needed.length" type="button" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'fix')">{{ row.issue_type === 'missing_cnic' || row.issue_type === 'invalid_cnic' ? 'Add CNIC' : 'Fix' }}</Button>
-                  </div>
-                </div>
+            <tr v-for="batch in batches" :key="batch.id" class="cursor-pointer" @click="openBatch(batch)">
+              <td class="font-medium">{{ batch.file_name }}</td>
+              <td>{{ batch.total_rows }}</td>
+              <td>{{ batch.committed ? batch.success_rows : '—' }}</td>
+              <td>{{ batch.exception_rows }}</td>
+              <td>
+                <StatusBadge :value="batch.committed ? 'imported' : batch.status" :label="batchStatus(batch)" />
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+    </PageSection>
+
+    <template v-if="selected">
+      <PageSection accent="violet" eyebrow="Batch" :title="selected.file_name">
+        <template #actions>
+          <Button v-if="canRun" type="button" size="sm" :disabled="selected.committed || selected.open_exceptions > 0" @click="runBatch">Run</Button>
+        </template>
+        <p class="mb-4 text-sm text-muted-foreground">
+          {{ selected.sheet_name }} · {{ selected.committed ? 'Imported' : 'Dry run' }} · {{ selected.open_exceptions }} open
+        </p>
+        <div class="flex flex-wrap items-end gap-2">
+          <div class="dpps-field">
+            <Label for="issue-filter">Issue</Label>
+            <select id="issue-filter" v-model="issue" class="dpps-select" aria-label="Issue" @change="openBatch(selected)">
+              <option v-for="[value, label] in issueTypes" :key="value || 'all-issues'" :value="value">{{ label }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="status-filter">Status</Label>
+            <select id="status-filter" v-model="status" class="dpps-select" aria-label="Status" @change="openBatch(selected)">
+              <option v-for="[value, label] in statuses" :key="value || 'all-statuses'" :value="value">{{ label }}</option>
+            </select>
+          </div>
+        </div>
+      </PageSection>
+
+      <PageSection accent="slate" eyebrow="Exceptions" title="Rows to review" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>Row</th>
+                <th>Issue</th>
+                <th>Details</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="selected.exceptions.length === 0">
+                <td class="px-3 py-3 text-muted-foreground" colspan="4">No exceptions.</td>
+              </tr>
+              <tr v-for="row in selected.exceptions" :key="row.id" class="align-top">
+                <td>{{ row.row_no }}</td>
+                <td>{{ row.issue_type }}</td>
+                <td>{{ row.issue_details }}</td>
+                <td>
+                  <p v-if="row.resolution_status !== 'open'" class="text-muted-foreground">{{ row.decision || row.resolution_status }}</p>
+                  <div v-else-if="canResolve" class="grid gap-2">
+                    <Input v-if="row.issue_type === 'possible_duplicate'" v-model="row.targetId" placeholder="Existing record id" aria-label="Existing record id" />
+                    <Input v-for="field in row.fields_needed" :key="field" v-model="row.fieldValues[field]" :placeholder="field" :aria-label="field" />
+                    <div class="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'skip')">Skip</Button>
+                      <Button v-if="row.issue_type === 'possible_duplicate'" type="button" variant="outline" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'merge')">Merge</Button>
+                      <Button v-if="row.issue_type === 'possible_duplicate'" type="button" variant="outline" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'new')">New</Button>
+                      <Button v-if="row.fields_needed.length" type="button" size="sm" :disabled="savingId === row.id" @click="resolve(row, 'fix')">{{ row.issue_type === 'missing_cnic' || row.issue_type === 'invalid_cnic' ? 'Add CNIC' : 'Fix' }}</Button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
     </template>
   </div>
 </template>

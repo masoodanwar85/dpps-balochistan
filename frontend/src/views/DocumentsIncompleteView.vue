@@ -1,6 +1,8 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { api, firstError } from '@/lib/api'
@@ -42,38 +44,42 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold">Documents incomplete</h2>
-      <Button type="button" variant="outline" @click="router.push({ name: 'dashboard' })">Back</Button>
-    </div>
-    <Alert v-if="loadError" variant="destructive">
-      <AlertTitle>{{ loadError }}</AlertTitle>
-    </Alert>
-    <div class="overflow-x-auto rounded-md border">
-      <table class="w-full text-sm">
-        <thead class="bg-muted/50 text-left">
-          <tr>
-            <th class="px-3 py-2">Applicant</th>
-            <th class="px-3 py-2">License No</th>
-            <th class="px-3 py-2">Valid to</th>
-            <th class="px-3 py-2">Documents</th>
-            <th class="px-3 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-t">
-            <td class="px-3 py-2">{{ row.applicant_name }}</td>
-            <td class="px-3 py-2">{{ row.license_no }}</td>
-            <td class="px-3 py-2">{{ displayDate(row.valid_to) }}</td>
-            <td class="px-3 py-2">Incomplete</td>
-            <td class="px-3 py-2"><Button type="button" variant="outline" @click="openRow(row)">View</Button></td>
-          </tr>
-          <tr v-if="rows.length === 0 && !loadError">
-            <td class="text-muted-foreground px-3 py-4" colspan="5">No licenses with incomplete documents.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="grid gap-6">
+    <PageSection accent="rose" eyebrow="Compliance" title="Documents incomplete">
+      <template #actions>
+        <Button type="button" variant="outline" size="sm" @click="router.push({ name: 'dashboard' })">Back</Button>
+      </template>
+      <Alert v-if="loadError" variant="destructive">
+        <AlertTitle>{{ loadError }}</AlertTitle>
+      </Alert>
+    </PageSection>
+
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Applicant</th>
+              <th>License No</th>
+              <th>Valid to</th>
+              <th>Documents</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td class="font-medium">{{ row.applicant_name }}</td>
+              <td>{{ row.license_no }}</td>
+              <td class="tabular-nums">{{ displayDate(row.valid_to) }}</td>
+              <td><StatusBadge value="incomplete" label="Incomplete" /></td>
+              <td class="text-right"><Button type="button" variant="outline" size="sm" @click="openRow(row)">View</Button></td>
+            </tr>
+            <tr v-if="rows.length === 0 && !loadError">
+              <td class="text-muted-foreground" colspan="5">No licenses with incomplete documents.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
   </div>
 </template>

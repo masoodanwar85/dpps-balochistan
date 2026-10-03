@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -163,100 +164,104 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
 
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div class="flex flex-wrap items-end gap-2">
-        <div class="grid gap-1">
+    <PageSection accent="slate" eyebrow="Audit" title="Activity log">
+      <template #actions>
+        <Button v-if="canExport" type="button" variant="outline" size="sm" @click="exportExcel">Export Excel</Button>
+      </template>
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="dpps-field">
           <Label for="log-user">User</Label>
-          <select id="log-user" v-model="userId" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="User" @change="applyFilters">
+          <select id="log-user" v-model="userId" class="dpps-select" aria-label="User" @change="applyFilters">
             <option v-for="option in userOptions" :key="option.value || 'all-users'" :value="option.value">{{ option.label }}</option>
           </select>
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="log-action">Action</Label>
-          <select id="log-action" v-model="action" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Action" @change="applyFilters">
+          <select id="log-action" v-model="action" class="dpps-select" aria-label="Action" @change="applyFilters">
             <option value="">All</option>
             <option v-for="item in meta.actions" :key="item" :value="item">{{ item }}</option>
           </select>
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="log-module">Module</Label>
-          <select id="log-module" v-model="moduleFilter" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Module" @change="applyFilters">
+          <select id="log-module" v-model="moduleFilter" class="dpps-select" aria-label="Module" @change="applyFilters">
             <option value="">All</option>
             <option v-for="item in meta.modules" :key="item" :value="item">{{ moduleLabel(item) }}</option>
           </select>
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="log-from">Date from</Label>
-          <input id="log-from" v-model="dateFrom" type="date" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Date from" @change="applyFilters">
+          <input id="log-from" v-model="dateFrom" type="date" class="dpps-select" aria-label="Date from" @change="applyFilters">
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="log-to">Date to</Label>
-          <input id="log-to" v-model="dateTo" type="date" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Date to" @change="applyFilters">
+          <input id="log-to" v-model="dateTo" type="date" class="dpps-select" aria-label="Date to" @change="applyFilters">
         </div>
       </div>
-      <Button v-if="canExport" type="button" variant="outline" @click="exportExcel">Export Excel</Button>
-    </div>
+    </PageSection>
 
-    <div class="overflow-x-auto rounded-xl border bg-card">
-      <table class="w-full text-left text-sm">
-        <thead class="border-b text-muted-foreground">
-          <tr>
-            <th class="px-3 py-2 font-medium">Time</th>
-            <th class="px-3 py-2 font-medium">User</th>
-            <th class="px-3 py-2 font-medium">Action</th>
-            <th class="px-3 py-2 font-medium">Record</th>
-            <th class="px-3 py-2 font-medium">IP</th>
-            <th class="px-3 py-2 font-medium"><span class="sr-only">Details</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="rows.length === 0">
-            <td class="px-3 py-3 text-muted-foreground" colspan="6">No activity.</td>
-          </tr>
-          <template v-for="row in rows" :key="row.id">
-            <tr class="border-b last:border-0">
-              <td class="px-3 py-2 whitespace-nowrap">{{ displayDateTime(row.created_at) }}</td>
-              <td class="px-3 py-2">{{ row.user_name }}</td>
-              <td class="px-3 py-2">{{ row.action }}</td>
-              <td class="px-3 py-2">{{ row.record }}</td>
-              <td class="px-3 py-2">{{ row.ip_address }}</td>
-              <td class="px-3 py-2 text-right">
-                <Button type="button" variant="outline" size="sm" :aria-expanded="openId === row.id" :aria-label="`Details for ${row.record}`" @click="toggleDetails(row.id)">
-                  Details
-                </Button>
-              </td>
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User</th>
+              <th>Action</th>
+              <th>Record</th>
+              <th>IP</th>
+              <th><span class="sr-only">Details</span></th>
             </tr>
-            <tr v-if="openId === row.id" class="border-b bg-muted/40">
-              <td class="px-3 py-3" colspan="6">
-                <p v-if="row.reason" class="mb-2 text-sm">Reason: {{ row.reason }}</p>
-                <table v-if="row.changes.length" class="w-full text-left text-sm">
-                  <thead class="text-muted-foreground">
-                    <tr>
-                      <th class="py-1 pr-3 font-medium">Field</th>
-                      <th class="py-1 pr-3 font-medium">Old value</th>
-                      <th class="py-1 font-medium">New value</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="change in row.changes" :key="change.field">
-                      <td class="py-1 pr-3">{{ change.field }}</td>
-                      <td class="py-1 pr-3">{{ cell(change.old) }}</td>
-                      <td class="py-1">{{ cell(change.new) }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <p v-else-if="!row.reason" class="text-muted-foreground">No field changes.</p>
-              </td>
+          </thead>
+          <tbody>
+            <tr v-if="rows.length === 0">
+              <td class="text-muted-foreground" colspan="6">No activity.</td>
             </tr>
-          </template>
-        </tbody>
-      </table>
-    </div>
+            <template v-for="row in rows" :key="row.id">
+              <tr>
+                <td class="whitespace-nowrap tabular-nums">{{ displayDateTime(row.created_at) }}</td>
+                <td>{{ row.user_name }}</td>
+                <td>{{ row.action }}</td>
+                <td>{{ row.record }}</td>
+                <td>{{ row.ip_address }}</td>
+                <td class="text-right">
+                  <Button type="button" variant="outline" size="sm" :aria-expanded="openId === row.id" :aria-label="`Details for ${row.record}`" @click="toggleDetails(row.id)">
+                    Details
+                  </Button>
+                </td>
+              </tr>
+              <tr v-if="openId === row.id" class="bg-muted/40 hover:bg-muted/40">
+                <td class="px-3 py-3" colspan="6">
+                  <p v-if="row.reason" class="mb-2 text-sm">Reason: {{ row.reason }}</p>
+                  <table v-if="row.changes.length" class="w-full text-left text-sm">
+                    <thead class="bg-transparent text-muted-foreground normal-case tracking-normal">
+                      <tr>
+                        <th class="px-0 py-1 pr-3 font-medium">Field</th>
+                        <th class="px-0 py-1 pr-3 font-medium">Old value</th>
+                        <th class="px-0 py-1 font-medium">New value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="change in row.changes" :key="change.field" class="border-0 hover:bg-transparent">
+                        <td class="px-0 py-1 pr-3">{{ change.field }}</td>
+                        <td class="px-0 py-1 pr-3">{{ cell(change.old) }}</td>
+                        <td class="px-0 py-1">{{ cell(change.new) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p v-else-if="!row.reason" class="text-muted-foreground">No field changes.</p>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
 
     <div class="flex items-center justify-between text-sm">
       <p class="text-muted-foreground">{{ showing }}</p>

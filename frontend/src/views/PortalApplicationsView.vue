@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -138,24 +139,27 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold">Applications</h2>
-      <Button
-        v-if="auth.can('portal.renewal.submit') && renewal?.renewal?.can_start && step === 0"
-        type="button"
-        @click="start"
-      >
-        {{ renewal.renewal.has_draft ? 'Continue renewal' : 'Start renewal' }}
-      </Button>
-    </div>
-    <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
-    <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
-    <p v-if="notice" class="text-sm">{{ notice }}</p>
-    <p v-if="renewal && !renewal.renewal.can_start" class="text-sm text-muted-foreground">{{ renewal.renewal.blocked_reason }}</p>
+  <div class="grid gap-6">
+    <PageSection accent="amber" eyebrow="Company portal" title="Applications">
+      <template #actions>
+        <Button
+          v-if="auth.can('portal.renewal.submit') && renewal?.renewal?.can_start && step === 0"
+          type="button"
+          size="sm"
+          @click="start"
+        >
+          {{ renewal.renewal.has_draft ? 'Continue renewal' : 'Start renewal' }}
+        </Button>
+      </template>
+      <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
+      <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
+      <p v-if="notice" class="text-sm">{{ notice }}</p>
+      <p v-if="renewal && !renewal.renewal.can_start" class="text-sm text-muted-foreground">{{ renewal.renewal.blocked_reason }}</p>
+    </PageSection>
 
-    <section v-if="step > 0 && renewal?.draft" class="grid gap-4 rounded-md border p-4">
-      <p class="text-sm">Step {{ step }} of 4 · {{ renewal.draft.application_no }}</p>
+    <PageSection v-if="step > 0 && renewal?.draft" accent="violet" eyebrow="Renewal" :title="`Step ${step} of 4`">
+      <div class="grid gap-4">
+      <p class="text-sm">{{ renewal.draft.application_no }}</p>
       <div v-if="step === 1" class="grid gap-2 text-sm">
         <p>Verified technical staff: {{ renewal.verified_technical_staff }} (minimum {{ renewal.minimum_technical_staff }})</p>
         <p v-if="renewal.license">License {{ renewal.license.license_no }}, valid until {{ displayDate(renewal.license.valid_to) }}</p>
@@ -165,12 +169,12 @@ onMounted(async () => {
         <form
           v-for="item in renewal.draft.items.filter((row) => row.portal_uploadable && row.requires_upload)"
           :key="item.id"
-          class="grid gap-2 rounded-md border p-3 text-sm"
+          class="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm"
           @submit.prevent="uploadItem(item, $event)"
         >
           <p class="font-medium">{{ item.annex }} · {{ item.title }}</p>
           <p>Status: {{ item.status }}<span v-if="item.page_count"> · {{ item.page_count }} pages</span></p>
-          <select name="document_type_id" class="border-input h-9 rounded-md border px-3" required>
+          <select name="document_type_id" class="dpps-select" required>
             <option value="">Document type</option>
             <option v-for="type in renewal.document_types" :key="type.id" :value="type.id">{{ type.name }}</option>
           </select>
@@ -196,9 +200,9 @@ onMounted(async () => {
       </div>
       <form v-else class="grid max-w-lg gap-3" @submit.prevent="submitRenewal">
         <p class="text-sm">{{ renewal.declaration }}</p>
-        <div class="grid gap-1"><Label for="declarant">Name</Label><Input id="declarant" v-model="declaration.declarant_name" required /></div>
-        <div class="grid gap-1"><Label for="declarant-cnic">CNIC</Label><Input id="declarant-cnic" v-model="declaration.declarant_cnic" required /></div>
-        <div class="grid gap-1"><Label for="pages">Total pages</Label><Input id="pages" v-model="declaration.total_pages" type="number" min="1" required /></div>
+        <div class="dpps-field"><Label for="declarant">Name</Label><Input id="declarant" v-model="declaration.declarant_name" required /></div>
+        <div class="dpps-field"><Label for="declarant-cnic">CNIC</Label><Input id="declarant-cnic" v-model="declaration.declarant_cnic" required /></div>
+        <div class="dpps-field"><Label for="pages">Total pages</Label><Input id="pages" v-model="declaration.total_pages" type="number" min="1" required /></div>
         <label class="flex items-center gap-2 text-sm">
           <input v-model="declaration.certified" type="checkbox" required>
           I certify the statement above.
@@ -208,33 +212,36 @@ onMounted(async () => {
           <Button type="submit">Submit</Button>
         </div>
       </form>
-    </section>
+      </div>
+    </PageSection>
 
-    <div class="overflow-x-auto rounded-md border">
-      <table class="w-full text-sm">
-        <thead class="bg-muted/50 text-left">
-          <tr>
-            <th class="px-3 py-2">Number</th>
-            <th class="px-3 py-2">Type</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2">Stage</th>
-            <th class="px-3 py-2">Payable</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-t">
-            <td class="px-3 py-2">{{ row.application_no }}</td>
-            <td class="px-3 py-2">{{ row.application_type }}</td>
-            <td class="px-3 py-2">{{ row.status }}</td>
-            <td class="px-3 py-2">{{ row.current_stage || '—' }}</td>
-            <td class="px-3 py-2">{{ row.total_payable }}</td>
-          </tr>
-          <tr v-if="rows.length === 0">
-            <td class="text-muted-foreground px-3 py-4" colspan="5">No applications.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Stage</th>
+              <th>Payable</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td>{{ row.application_no }}</td>
+              <td>{{ row.application_type }}</td>
+              <td>{{ row.status }}</td>
+              <td>{{ row.current_stage || '—' }}</td>
+              <td>{{ row.total_payable }}</td>
+            </tr>
+            <tr v-if="rows.length === 0">
+              <td class="text-muted-foreground" colspan="5">No applications.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
     <section v-for="row in rows.filter((item) => item.letters?.some((letter) => letter.status === 'open'))" :key="`letter-${row.id}`" class="text-sm">
       <p v-for="letter in row.letters" :key="letter.id">
         {{ letter.letter_no }} · {{ letter.item_count === 1 ? '1 item' : `${letter.item_count} items` }} · due {{ displayDate(letter.reply_due_date) }}

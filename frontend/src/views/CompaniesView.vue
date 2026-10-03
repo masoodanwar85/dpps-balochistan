@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -380,35 +382,39 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
 
     <template v-if="mode === 'list'">
-      <div class="flex flex-wrap items-end justify-between gap-3">
-        <div class="flex flex-wrap items-end gap-2">
-          <div class="grid gap-1">
+      <PageSection accent="emerald" eyebrow="Register" title="Companies">
+        <template #actions>
+          <Button v-if="canExport" type="button" variant="outline" size="sm" @click="exportExcel">Export Excel</Button>
+          <Button v-if="canCreate" type="button" size="sm" @click="startCreate">New Company</Button>
+        </template>
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="dpps-field">
             <Label for="company-search">Search</Label>
             <Input id="company-search" v-model="search" class="w-56" placeholder="Name, code, or NTN" aria-label="Search" @keyup.enter="applyFilters" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="status-filter">Status</Label>
-            <select id="status-filter" v-model="status" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Status" @change="applyFilters">
+            <select id="status-filter" v-model="status" class="dpps-select" aria-label="Status" @change="applyFilters">
               <option v-for="[value, label] in statuses" :key="value || 'all'" :value="value">{{ label }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="pcpa-filter">PCPA</Label>
-            <select id="pcpa-filter" v-model="pcpa" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="PCPA" @change="applyFilters">
+            <select id="pcpa-filter" v-model="pcpa" class="dpps-select" aria-label="PCPA" @change="applyFilters">
               <option value="">All</option>
               <option value="true">Yes</option>
               <option value="false">No</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="expiry-filter">Expiry</Label>
-            <select id="expiry-filter" v-model="expiry" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Expiry" @change="applyFilters">
+            <select id="expiry-filter" v-model="expiry" class="dpps-select" aria-label="Expiry" @change="applyFilters">
               <option value="">All</option>
               <option value="expiring">Expiring</option>
               <option value="expired">Expired</option>
@@ -416,37 +422,35 @@ onMounted(() => {
           </div>
           <Button type="button" variant="outline" @click="applyFilters">Search</Button>
         </div>
-        <div class="flex gap-2">
-          <Button v-if="canExport" type="button" variant="outline" @click="exportExcel">Export Excel</Button>
-          <Button v-if="canCreate" type="button" @click="startCreate">New Company</Button>
-        </div>
-      </div>
+      </PageSection>
 
-      <div class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
-            <tr>
-              <th class="px-3 py-2 font-medium">Code</th>
-              <th class="px-3 py-2 font-medium">Name</th>
-              <th class="px-3 py-2 font-medium">NTN</th>
-              <th class="px-3 py-2 font-medium">Expiry</th>
-              <th class="px-3 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="rows.length === 0">
-              <td class="px-3 py-3 text-muted-foreground" colspan="5">No companies.</td>
-            </tr>
-            <tr v-for="row in rows" :key="row.id" class="cursor-pointer border-b last:border-0" @click="openCompany(row)">
-              <td class="px-3 py-2">{{ row.company_code }}</td>
-              <td class="px-3 py-2">{{ row.name }}</td>
-              <td class="px-3 py-2">{{ row.ntn || '—' }}</td>
-              <td class="px-3 py-2">{{ displayDate(row.expiry_date) }}</td>
-              <td class="px-3 py-2">{{ statusLabel(row.status) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>NTN</th>
+                <th>Expiry</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="rows.length === 0">
+                <td class="text-muted-foreground" colspan="5">No companies.</td>
+              </tr>
+              <tr v-for="row in rows" :key="row.id" class="dpps-row-link" @click="openCompany(row)">
+                <td class="font-medium">{{ row.company_code }}</td>
+                <td>{{ row.name }}</td>
+                <td>{{ row.ntn || '—' }}</td>
+                <td class="tabular-nums">{{ displayDate(row.expiry_date) }}</td>
+                <td><StatusBadge :value="row.status" :label="statusLabel(row.status)" /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
 
       <div class="flex items-center justify-between text-sm">
         <p class="text-muted-foreground">{{ showing }}</p>
@@ -457,122 +461,128 @@ onMounted(() => {
       </div>
     </template>
 
-    <form v-else-if="form" class="grid max-w-3xl gap-4" @submit.prevent="save(false)">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold">{{ company ? company.name : 'New company' }}</h2>
-        <Button type="button" variant="outline" @click="leaveForm">Back</Button>
-      </div>
-      <p v-if="company" class="text-sm text-muted-foreground">
-        {{ company.company_code }} · {{ statusLabel(company.status) }}
-        <span v-if="company.expiry_date"> · Expiry {{ displayDate(company.expiry_date) }}</span>
-      </p>
+    <form v-else-if="form" class="grid gap-6" @submit.prevent="save(false)">
+      <PageSection accent="emerald" eyebrow="Register" :title="company ? company.name : 'New company'">
+        <template #actions>
+          <Button type="button" variant="outline" size="sm" @click="leaveForm">Back</Button>
+        </template>
+        <div v-if="company" class="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span>{{ company.company_code }}</span>
+          <StatusBadge :value="company.status" :label="statusLabel(company.status)" />
+          <span v-if="company.expiry_date">Expiry {{ displayDate(company.expiry_date) }}</span>
+        </div>
 
-      <Alert v-if="formError" variant="destructive">
-        <AlertTitle>{{ formError }}</AlertTitle>
-      </Alert>
-      <Alert v-if="notice">
-        <AlertTitle>{{ notice }}</AlertTitle>
-      </Alert>
-      <Alert v-if="ntnTaken" variant="destructive">
-        <AlertTitle>This NTN already exists.</AlertTitle>
-      </Alert>
-      <Alert v-for="match in matches" :key="match.id">
-        <AlertTitle>
-          {{ match.message }}
-          <button type="button" class="ml-2 underline" @click="viewMatch(match)">View it</button>
-        </AlertTitle>
-      </Alert>
-
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div class="grid gap-1 sm:col-span-2">
-          <Label for="company-name">Name</Label>
-          <Input id="company-name" v-model="form.name" required :readonly="!canCreate && !canUpdate" aria-label="Name" @input="scheduleCheck" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="legal-type">Legal type</Label>
-          <select id="legal-type" v-model="form.legal_type" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Legal type" :disabled="!canCreate && !canUpdate">
-            <option v-for="[value, label] in legalTypes" :key="value" :value="value">{{ label }}</option>
-          </select>
-        </div>
-        <div class="grid gap-1">
-          <Label for="ntn">NTN</Label>
-          <Input id="ntn" v-model="form.ntn" :readonly="!canCreate && !canUpdate" aria-label="NTN" @input="scheduleCheck" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="incorporation-no">Incorporation no</Label>
-          <Input id="incorporation-no" v-model="form.incorporation_no" :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="incorporation-date">Incorporation date</Label>
-          <Input id="incorporation-date" v-model="form.incorporation_date" type="date" :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1 sm:col-span-2">
-          <Label for="address">Head office address</Label>
-          <textarea id="address" v-model="form.head_office_address" rows="2" class="border-input rounded-md border bg-transparent px-3 py-2 text-sm" required :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="city">City</Label>
-          <Input id="city" v-model="form.city" required :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="province">Province</Label>
-          <select id="province" v-model="form.province_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="Province" :disabled="!canCreate && !canUpdate">
-            <option value="">Choose</option>
-            <option v-for="province in provinces" :key="province.id" :value="province.id">{{ province.name }}</option>
-          </select>
-        </div>
-        <div class="grid gap-1">
-          <Label for="landline">Landline</Label>
-          <Input id="landline" v-model="form.landline" :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="company-mobile">Mobile</Label>
-          <Input id="company-mobile" v-model="form.mobile" :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="company-email">Email</Label>
-          <Input id="company-email" v-model="form.email" type="email" :readonly="!canCreate && !canUpdate" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="website">Website</Label>
-          <Input id="website" v-model="form.website" :readonly="!canCreate && !canUpdate" />
-        </div>
-        <label class="flex items-center gap-2 text-sm">
-          <input v-model="form.pcpa_member" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="PCPA member">
-          PCPA
-        </label>
-        <label class="flex items-center gap-2 text-sm">
-          <input v-model="form.croplife_member" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="CropLife member">
-          CropLife
-        </label>
-        <div class="grid gap-1 sm:col-span-2">
-          <Label for="membership-no">Membership no</Label>
-          <Input id="membership-no" v-model="form.membership_no" :readonly="!canCreate && !canUpdate" />
-        </div>
-      </div>
-
-      <div v-if="warnings.length" class="grid gap-2">
-        <Alert>
-          <AlertTitle>{{ warnings.join(' ') }} Enter a reason to continue.</AlertTitle>
+        <Alert v-if="formError" variant="destructive" class="mb-4">
+          <AlertTitle>{{ formError }}</AlertTitle>
         </Alert>
-        <div class="grid gap-1">
-          <Label for="warning-reason">Reason</Label>
-          <textarea id="warning-reason" v-model="warningReason" rows="2" class="border-input rounded-md border bg-transparent px-3 py-2 text-sm" aria-label="Warning reason" />
-        </div>
-      </div>
+        <Alert v-if="notice" class="mb-4">
+          <AlertTitle>{{ notice }}</AlertTitle>
+        </Alert>
+        <Alert v-if="ntnTaken" variant="destructive" class="mb-4">
+          <AlertTitle>This NTN already exists.</AlertTitle>
+        </Alert>
+        <Alert v-for="match in matches" :key="match.id" class="mb-4">
+          <AlertTitle>
+            {{ match.message }}
+            <button type="button" class="ml-2 underline" @click="viewMatch(match)">View it</button>
+          </AlertTitle>
+        </Alert>
 
-      <div v-if="canCreate || canUpdate" class="flex gap-2">
-        <Button type="submit" :disabled="saving">Save</Button>
-        <Button v-if="warnings.length" type="button" variant="outline" :disabled="saving" @click="save(true)">Confirm and save</Button>
-      </div>
-
-      <div v-if="company && canDelete" class="grid max-w-lg gap-2 border-t pt-4">
-        <Label for="delete-reason">Delete reason</Label>
-        <textarea id="delete-reason" v-model="deleteReason" rows="2" class="border-input rounded-md border bg-transparent px-3 py-2 text-sm" aria-label="Delete reason" />
-        <div>
-          <Button type="button" variant="outline" :disabled="saving" @click="removeCompany">Delete</Button>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="dpps-field sm:col-span-2">
+            <Label for="company-name">Name</Label>
+            <Input id="company-name" v-model="form.name" required :readonly="!canCreate && !canUpdate" aria-label="Name" @input="scheduleCheck" />
+          </div>
+          <div class="dpps-field">
+            <Label for="legal-type">Legal type</Label>
+            <select id="legal-type" v-model="form.legal_type" class="dpps-select" aria-label="Legal type" :disabled="!canCreate && !canUpdate">
+              <option v-for="[value, label] in legalTypes" :key="value" :value="value">{{ label }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="ntn">NTN</Label>
+            <Input id="ntn" v-model="form.ntn" :readonly="!canCreate && !canUpdate" aria-label="NTN" @input="scheduleCheck" />
+          </div>
+          <div class="dpps-field">
+            <Label for="incorporation-no">Incorporation no</Label>
+            <Input id="incorporation-no" v-model="form.incorporation_no" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
+            <Label for="incorporation-date">Incorporation date</Label>
+            <Input id="incorporation-date" v-model="form.incorporation_date" type="date" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field sm:col-span-2">
+            <Label for="address">Head office address</Label>
+            <textarea id="address" v-model="form.head_office_address" rows="2" class="dpps-textarea" required :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
+            <Label for="city">City</Label>
+            <Input id="city" v-model="form.city" required :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
+            <Label for="province">Province</Label>
+            <select id="province" v-model="form.province_id" class="dpps-select" required aria-label="Province" :disabled="!canCreate && !canUpdate">
+              <option value="">Choose</option>
+              <option v-for="province in provinces" :key="province.id" :value="province.id">{{ province.name }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="landline">Landline</Label>
+            <Input id="landline" v-model="form.landline" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
+            <Label for="company-mobile">Mobile</Label>
+            <Input id="company-mobile" v-model="form.mobile" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
+            <Label for="company-email">Email</Label>
+            <Input id="company-email" v-model="form.email" type="email" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
+            <Label for="website">Website</Label>
+            <Input id="website" v-model="form.website" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="form.pcpa_member" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="PCPA member">
+            PCPA
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="form.croplife_member" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="CropLife member">
+            CropLife
+          </label>
+          <div class="dpps-field sm:col-span-2">
+            <Label for="membership-no">Membership no</Label>
+            <Input id="membership-no" v-model="form.membership_no" :readonly="!canCreate && !canUpdate" />
+          </div>
         </div>
-      </div>
+
+        <div v-if="warnings.length" class="mt-4 grid gap-2">
+          <Alert>
+            <AlertTitle>{{ warnings.join(' ') }} Enter a reason to continue.</AlertTitle>
+          </Alert>
+          <div class="dpps-field">
+            <Label for="warning-reason">Reason</Label>
+            <textarea id="warning-reason" v-model="warningReason" rows="2" class="dpps-textarea" aria-label="Warning reason" />
+          </div>
+        </div>
+
+        <div v-if="canCreate || canUpdate" class="mt-5 flex gap-2">
+          <Button type="submit" :disabled="saving">Save</Button>
+          <Button v-if="warnings.length" type="button" variant="outline" :disabled="saving" @click="save(true)">Confirm and save</Button>
+        </div>
+      </PageSection>
+
+      <PageSection v-if="company && canDelete" accent="rose" eyebrow="Danger zone" title="Delete company">
+        <div class="grid max-w-lg gap-3">
+          <div class="dpps-field">
+            <Label for="delete-reason">Delete reason</Label>
+            <textarea id="delete-reason" v-model="deleteReason" rows="2" class="dpps-textarea" aria-label="Delete reason" />
+          </div>
+          <div>
+            <Button type="button" variant="outline" :disabled="saving" @click="removeCompany">Delete</Button>
+          </div>
+        </div>
+      </PageSection>
 
       <p v-if="!canCreate && !canUpdate" class="text-sm text-muted-foreground">{{ legalLabel(form.legal_type) }}</p>
     </form>

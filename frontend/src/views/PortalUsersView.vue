@@ -1,5 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -83,58 +85,79 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold">Users</h2>
-      <Button type="button" @click="open = !open">Add user</Button>
-    </div>
-    <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
-    <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
-    <p v-if="notice" class="text-sm">{{ notice }}</p>
-    <form v-if="open" class="grid max-w-lg gap-3 rounded-md border p-4" @submit.prevent="addUser">
-      <div class="grid gap-1"><Label for="name">Name</Label><Input id="name" v-model="form.name" required /></div>
-      <div class="grid gap-1"><Label for="email">Email</Label><Input id="email" v-model="form.email" type="email" required /></div>
-      <div class="grid gap-1"><Label for="mobile">Mobile</Label><Input id="mobile" v-model="form.mobile" required /></div>
-      <div class="grid gap-1"><Label for="password">Temporary password</Label><Input id="password" v-model="form.password" type="password" required /></div>
-      <div class="grid gap-1"><Label for="confirm">Confirm password</Label><Input id="confirm" v-model="form.password_confirmation" type="password" required /></div>
-      <div class="grid gap-1">
-        <Label for="role">Role</Label>
-        <select id="role" v-model="form.role" class="border-input h-9 rounded-md border px-3 text-sm">
-          <option>Company Admin</option>
-          <option>Company Staff</option>
-        </select>
+  <div class="grid gap-6">
+    <PageSection accent="slate" eyebrow="Company portal" title="Users">
+      <template #actions>
+        <Button type="button" size="sm" @click="open = !open">Add user</Button>
+      </template>
+      <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
+      <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
+      <p v-if="notice" class="text-sm">{{ notice }}</p>
+    </PageSection>
+
+    <PageSection v-if="open" accent="violet" eyebrow="Access" title="Add user">
+      <form class="grid max-w-lg gap-3" @submit.prevent="addUser">
+        <div class="dpps-field"><Label for="name">Name</Label><Input id="name" v-model="form.name" required /></div>
+        <div class="dpps-field"><Label for="email">Email</Label><Input id="email" v-model="form.email" type="email" required /></div>
+        <div class="dpps-field"><Label for="mobile">Mobile</Label><Input id="mobile" v-model="form.mobile" required /></div>
+        <div class="dpps-field"><Label for="password">Temporary password</Label><Input id="password" v-model="form.password" type="password" required /></div>
+        <div class="dpps-field"><Label for="confirm">Confirm password</Label><Input id="confirm" v-model="form.password_confirmation" type="password" required /></div>
+        <div class="dpps-field">
+          <Label for="role">Role</Label>
+          <select id="role" v-model="form.role" class="dpps-select">
+            <option>Company Admin</option>
+            <option>Company Staff</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <Button type="submit">Save</Button>
+          <Button type="button" variant="outline" @click="open = false">Cancel</Button>
+        </div>
+      </form>
+    </PageSection>
+
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Active</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td class="font-medium">{{ row.name }}</td>
+              <td>{{ row.email }}</td>
+              <td>{{ row.role }}</td>
+              <td><StatusBadge :value="row.is_active" :label="row.is_active ? 'Yes' : 'No'" /></td>
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  <Button v-if="row.is_active" type="button" variant="outline" size="sm" @click="deactivate(row)">Deactivate</Button>
+                  <Button type="button" variant="outline" size="sm" @click="resetId = row.id">Reset password</Button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="rows.length === 0 && !loadError">
+              <td class="text-muted-foreground" colspan="5">No users.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <Button type="submit">Save</Button>
-    </form>
-    <div class="overflow-x-auto rounded-md border">
-      <table class="w-full text-sm">
-        <thead class="bg-muted/50 text-left">
-          <tr>
-            <th class="px-3 py-2">Name</th>
-            <th class="px-3 py-2">Email</th>
-            <th class="px-3 py-2">Role</th>
-            <th class="px-3 py-2">Active</th>
-            <th class="px-3 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-t">
-            <td class="px-3 py-2">{{ row.name }}</td>
-            <td class="px-3 py-2">{{ row.email }}</td>
-            <td class="px-3 py-2">{{ row.role }}</td>
-            <td class="px-3 py-2">{{ row.is_active ? 'Yes' : 'No' }}</td>
-            <td class="px-3 py-2">
-              <Button v-if="row.is_active" type="button" variant="outline" @click="deactivate(row)">Deactivate</Button>
-              <Button type="button" variant="outline" class="ml-2" @click="resetId = row.id">Reset password</Button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <form v-if="resetId" class="grid max-w-lg gap-3 rounded-md border p-4" @submit.prevent="resetPassword">
-      <div class="grid gap-1"><Label for="new-password">New temporary password</Label><Input id="new-password" v-model="form.password" type="password" required /></div>
-      <div class="grid gap-1"><Label for="new-confirm">Confirm password</Label><Input id="new-confirm" v-model="form.password_confirmation" type="password" required /></div>
-      <Button type="submit">Reset</Button>
-    </form>
+    </PageSection>
+
+    <PageSection v-if="resetId" accent="orange" eyebrow="Access" title="Reset password">
+      <form class="grid max-w-lg gap-3" @submit.prevent="resetPassword">
+        <div class="dpps-field"><Label for="new-password">New temporary password</Label><Input id="new-password" v-model="form.password" type="password" required /></div>
+        <div class="dpps-field"><Label for="new-confirm">Confirm password</Label><Input id="new-confirm" v-model="form.password_confirmation" type="password" required /></div>
+        <div class="flex gap-2">
+          <Button type="submit">Reset</Button>
+          <Button type="button" variant="outline" @click="resetId = null">Cancel</Button>
+        </div>
+      </form>
+    </PageSection>
   </div>
 </template>

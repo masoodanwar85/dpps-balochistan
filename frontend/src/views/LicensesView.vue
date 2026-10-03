@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -244,15 +246,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <h1 class="text-xl font-semibold">Licenses</h1>
-      <div class="flex flex-wrap gap-2">
-        <Button v-if="canIssue" type="button" @click="router.push({ name: 'previous-license' })">Record previous license</Button>
-        <Button v-if="canExport" type="button" variant="outline" @click="exportExcel">Export Excel</Button>
-      </div>
-    </div>
-
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
@@ -260,120 +254,131 @@ onMounted(async () => {
       <AlertTitle>{{ notice }}</AlertTitle>
     </Alert>
 
-    <div class="flex flex-wrap items-end gap-3">
-      <div class="grid gap-1">
-        <Label for="lic-search">License no</Label>
-        <Input id="lic-search" v-model="search" aria-label="License no" @keyup.enter="page = 1; load()" />
+    <PageSection accent="violet" eyebrow="Issuance" title="Licenses">
+      <template #actions>
+        <Button v-if="canIssue" type="button" size="sm" @click="router.push({ name: 'previous-license' })">Record previous license</Button>
+        <Button v-if="canExport" type="button" variant="outline" size="sm" @click="exportExcel">Export Excel</Button>
+      </template>
+      <div class="flex flex-wrap items-end gap-3">
+        <div class="dpps-field">
+          <Label for="lic-search">License no</Label>
+          <Input id="lic-search" v-model="search" aria-label="License no" @keyup.enter="page = 1; load()" />
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-type">Type</Label>
+          <select id="lic-type" v-model="entity" class="dpps-select" aria-label="Type" @change="page = 1; load()">
+            <option value="">All</option>
+            <option value="company">Company</option>
+            <option value="dealer">Dealer</option>
+          </select>
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-kind">Kind</Label>
+          <select id="lic-kind" v-model="kind" class="dpps-select" aria-label="Kind" @change="page = 1; load()">
+            <option value="">All</option>
+            <option value="registration">Registration</option>
+            <option value="renewal">Renewal</option>
+            <option value="restoration">Restoration</option>
+          </select>
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-status">Status</Label>
+          <select id="lic-status" v-model="status" class="dpps-select" aria-label="Status" @change="page = 1; load()">
+            <option v-for="[value, name] in statuses" :key="value" :value="value">{{ name }}</option>
+          </select>
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-district">District</Label>
+          <select id="lic-district" v-model="districtId" class="dpps-select" aria-label="District" @change="page = 1; load()">
+            <option value="">All</option>
+            <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
+          </select>
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-from">Valid from</Label>
+          <Input id="lic-from" v-model="validFrom" type="date" aria-label="Valid from" @change="page = 1; load()" />
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-to">Valid to</Label>
+          <Input id="lic-to" v-model="validTo" type="date" aria-label="Valid to" @change="page = 1; load()" />
+        </div>
+        <Button type="button" variant="outline" @click="page = 1; load()">Search</Button>
       </div>
-      <div class="grid gap-1">
-        <Label for="lic-type">Type</Label>
-        <select id="lic-type" v-model="entity" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Type" @change="page = 1; load()">
-          <option value="">All</option>
-          <option value="company">Company</option>
-          <option value="dealer">Dealer</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-kind">Kind</Label>
-        <select id="lic-kind" v-model="kind" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Kind" @change="page = 1; load()">
-          <option value="">All</option>
-          <option value="registration">Registration</option>
-          <option value="renewal">Renewal</option>
-          <option value="restoration">Restoration</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-status">Status</Label>
-        <select id="lic-status" v-model="status" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Status" @change="page = 1; load()">
-          <option v-for="[value, name] in statuses" :key="value" :value="value">{{ name }}</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-district">District</Label>
-        <select id="lic-district" v-model="districtId" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="District" @change="page = 1; load()">
-          <option value="">All</option>
-          <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-from">Valid from</Label>
-        <Input id="lic-from" v-model="validFrom" type="date" aria-label="Valid from" @change="page = 1; load()" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-to">Valid to</Label>
-        <Input id="lic-to" v-model="validTo" type="date" aria-label="Valid to" @change="page = 1; load()" />
-      </div>
-      <Button type="button" variant="outline" @click="page = 1; load()">Search</Button>
-    </div>
+    </PageSection>
 
-    <div class="overflow-x-auto rounded-md border">
-      <table class="w-full text-sm">
-        <thead class="bg-muted/50 text-left">
-          <tr>
-            <th class="px-3 py-2 font-medium">License No</th>
-            <th class="px-3 py-2 font-medium">Applicant</th>
-            <th class="px-3 py-2 font-medium">Type</th>
-            <th class="px-3 py-2 font-medium">Kind</th>
-            <th class="px-3 py-2 font-medium">District</th>
-            <th class="px-3 py-2 font-medium">Valid from</th>
-            <th class="px-3 py-2 font-medium">Valid to</th>
-            <th class="px-3 py-2 font-medium">Status</th>
-            <th class="px-3 py-2 font-medium">Documents</th>
-            <th class="px-3 py-2 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-t">
-            <td class="px-3 py-2">{{ row.license_no }}</td>
-            <td class="px-3 py-2">{{ row.applicant_name }}</td>
-            <td class="px-3 py-2">{{ label(row.licensable_type) }}</td>
-            <td class="px-3 py-2">{{ label(row.license_kind) }}</td>
-            <td class="px-3 py-2">{{ row.district_name || '—' }}</td>
-            <td class="px-3 py-2">{{ displayDate(row.valid_from) }}</td>
-            <td class="px-3 py-2">{{ displayDate(row.valid_to) }}</td>
-            <td class="px-3 py-2">{{ label(row.status) }}</td>
-            <td class="px-3 py-2">{{ label(row.documents_status) }}</td>
-            <td class="px-3 py-2">
-              <div class="flex flex-wrap gap-1">
-                <Button type="button" variant="outline" @click="openRow(row)">View</Button>
-                <Button type="button" variant="outline" @click="certificate(row)">Certificate</Button>
-                <Button v-if="canChange(row, 'suspend')" type="button" variant="outline" @click="startAction(row, 'suspend')">Suspend</Button>
-                <Button v-if="canChange(row, 'cancel')" type="button" variant="outline" @click="startAction(row, 'cancel')">Cancel</Button>
-                <Button v-if="canChange(row, 'restore')" type="button" variant="outline" @click="startAction(row, 'restore')">Restore</Button>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="rows.length === 0">
-            <td class="text-muted-foreground px-3 py-4" colspan="10">No licenses.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>License No</th>
+              <th>Applicant</th>
+              <th>Type</th>
+              <th>Kind</th>
+              <th>District</th>
+              <th>Valid from</th>
+              <th>Valid to</th>
+              <th>Status</th>
+              <th>Documents</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td class="font-medium">{{ row.license_no }}</td>
+              <td>{{ row.applicant_name }}</td>
+              <td><StatusBadge :value="row.licensable_type" :label="label(row.licensable_type)" /></td>
+              <td><StatusBadge :value="row.license_kind" :label="label(row.license_kind)" /></td>
+              <td>{{ row.district_name || '—' }}</td>
+              <td class="tabular-nums">{{ displayDate(row.valid_from) }}</td>
+              <td class="tabular-nums">{{ displayDate(row.valid_to) }}</td>
+              <td><StatusBadge :value="row.status" :label="label(row.status)" /></td>
+              <td><StatusBadge :value="row.documents_status" :label="label(row.documents_status)" /></td>
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  <Button type="button" variant="outline" size="sm" @click="openRow(row)">View</Button>
+                  <Button type="button" variant="outline" size="sm" @click="certificate(row)">Certificate</Button>
+                  <Button v-if="canChange(row, 'suspend')" type="button" variant="outline" size="sm" @click="startAction(row, 'suspend')">Suspend</Button>
+                  <Button v-if="canChange(row, 'cancel')" type="button" variant="outline" size="sm" @click="startAction(row, 'cancel')">Cancel</Button>
+                  <Button v-if="canChange(row, 'restore')" type="button" variant="outline" size="sm" @click="startAction(row, 'restore')">Restore</Button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="rows.length === 0">
+              <td class="text-muted-foreground" colspan="10">No licenses.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
 
-    <form v-if="action" class="grid max-w-xl gap-3 rounded-md border p-3" @submit.prevent="submitAction">
-      <h2 class="font-medium">{{ action.name === 'suspend' ? 'Suspend' : action.name === 'cancel' ? 'Cancel' : 'Restore' }} {{ action.license_no }}</h2>
-      <div class="grid gap-1">
-        <Label for="lic-reason">Reason</Label>
-        <Input id="lic-reason" v-model="actionForm.reason" required minlength="3" aria-label="Reason" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-order">Order number</Label>
-        <Input id="lic-order" v-model="actionForm.order_no" required aria-label="Order number" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="lic-effective">Effective date</Label>
-        <Input id="lic-effective" v-model="actionForm.effective_date" type="date" required aria-label="Effective date" />
-      </div>
+    <PageSection v-if="action" accent="orange" eyebrow="Action" :title="`${action.name === 'suspend' ? 'Suspend' : action.name === 'cancel' ? 'Cancel' : 'Restore'} ${action.license_no}`">
+      <form class="grid max-w-xl gap-4" @submit.prevent="submitAction">
+        <div class="dpps-field">
+          <Label for="lic-reason">Reason</Label>
+          <Input id="lic-reason" v-model="actionForm.reason" required minlength="3" aria-label="Reason" />
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-order">Order number</Label>
+          <Input id="lic-order" v-model="actionForm.order_no" required aria-label="Order number" />
+        </div>
+        <div class="dpps-field">
+          <Label for="lic-effective">Effective date</Label>
+          <Input id="lic-effective" v-model="actionForm.effective_date" type="date" required aria-label="Effective date" />
+        </div>
+        <div class="flex gap-2">
+          <Button type="submit" :disabled="saving">Save</Button>
+          <Button type="button" variant="outline" @click="action = null">Cancel</Button>
+        </div>
+      </form>
+    </PageSection>
+
+    <div class="flex items-center justify-between text-sm">
+      <p class="text-muted-foreground">Showing {{ meta.total }}</p>
       <div class="flex gap-2">
-        <Button type="submit" :disabled="saving">Save</Button>
-        <Button type="button" variant="outline" @click="action = null">Cancel</Button>
+        <Button type="button" variant="outline" :disabled="page <= 1" @click="page -= 1; load()">Previous</Button>
+        <Button type="button" variant="outline" :disabled="page >= meta.last_page" @click="page += 1; load()">Next</Button>
       </div>
-    </form>
-
-    <p class="text-muted-foreground text-sm">Showing {{ meta.total }}</p>
-    <div class="flex gap-2">
-      <Button type="button" variant="outline" :disabled="page <= 1" @click="page -= 1; load()">Previous</Button>
-      <Button type="button" variant="outline" :disabled="page >= meta.last_page" @click="page += 1; load()">Next</Button>
     </div>
   </div>
 </template>

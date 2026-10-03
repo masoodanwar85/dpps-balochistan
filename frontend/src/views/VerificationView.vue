@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { api, firstError } from '@/lib/api'
@@ -119,85 +120,88 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <h2 class="text-lg font-semibold">Verification queue</h2>
-    <div class="flex flex-wrap gap-2">
-      <Button
-        v-for="tab in tabs"
-        :key="tab.type"
-        type="button"
-        :variant="tab.type === activeType ? 'default' : 'outline'"
-        @click="selectTab(tab.type)"
-      >
-        {{ tab.label }} ({{ tab.count }})
-      </Button>
-    </div>
-    <Alert v-if="loadError" variant="destructive">
-      <AlertTitle>{{ loadError }}</AlertTitle>
-    </Alert>
-    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-      <div class="overflow-x-auto rounded-md border">
-        <table class="w-full text-sm">
-          <thead class="bg-muted/50 text-left">
-            <tr>
-              <th class="px-3 py-2">Applicant</th>
-              <th class="px-3 py-2">Item</th>
-              <th class="px-3 py-2">Submitted</th>
-              <th class="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="`${row.type}-${row.id}`" class="border-t">
-              <td class="px-3 py-2">{{ row.applicant }}</td>
-              <td class="px-3 py-2">{{ row.item }}</td>
-              <td class="px-3 py-2">{{ displayDate(row.submitted_at) }}</td>
-              <td class="px-3 py-2">
-                <Button type="button" variant="outline" @click="openReview(row)">Review</Button>
-              </td>
-            </tr>
-            <tr v-if="rows.length === 0 && !loadError">
-              <td class="text-muted-foreground px-3 py-4" colspan="4">Nothing is waiting in this tab.</td>
-            </tr>
-          </tbody>
-        </table>
+  <div class="grid gap-6">
+    <PageSection accent="orange" eyebrow="Queue" title="Verification queue">
+      <div class="flex flex-wrap gap-2">
+        <Button
+          v-for="tab in tabs"
+          :key="tab.type"
+          type="button"
+          size="sm"
+          :variant="tab.type === activeType ? 'default' : 'outline'"
+          @click="selectTab(tab.type)"
+        >
+          {{ tab.label }} ({{ tab.count }})
+        </Button>
       </div>
-      <aside v-if="review" class="grid gap-3 rounded-md border p-4">
-        <div>
-          <p class="text-sm font-medium">{{ review.applicant }}</p>
-          <p class="text-muted-foreground text-sm">{{ review.item }}</p>
+      <Alert v-if="loadError" variant="destructive" class="mt-4">
+        <AlertTitle>{{ loadError }}</AlertTitle>
+      </Alert>
+    </PageSection>
+
+    <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>Applicant</th>
+                <th>Item</th>
+                <th>Submitted</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in rows" :key="`${row.type}-${row.id}`">
+                <td class="font-medium">{{ row.applicant }}</td>
+                <td>{{ row.item }}</td>
+                <td class="tabular-nums">{{ displayDate(row.submitted_at) }}</td>
+                <td class="text-right">
+                  <Button type="button" variant="outline" size="sm" @click="openReview(row)">Review</Button>
+                </td>
+              </tr>
+              <tr v-if="rows.length === 0 && !loadError">
+                <td class="text-muted-foreground" colspan="4">Nothing is waiting in this tab.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
+      </PageSection>
+      <PageSection v-if="review" accent="orange" eyebrow="Review" :title="review.applicant">
+        <p class="mb-4 text-sm text-muted-foreground">{{ review.item }}</p>
         <dl class="grid gap-2 text-sm">
           <div v-for="field in review.fields" :key="field.label" class="grid grid-cols-[7rem_1fr] gap-2">
             <dt class="text-muted-foreground">{{ field.label }}</dt>
             <dd>{{ field.value || '—' }}</dd>
           </div>
         </dl>
-        <div v-if="review.files?.length" class="grid gap-2">
+        <div v-if="review.files?.length" class="mt-4 grid gap-2">
           <Button
             v-for="file in review.files"
             :key="file.id"
             type="button"
             variant="outline"
+            size="sm"
             @click="openFile(file.id)"
           >
             Open {{ file.title }}
           </Button>
         </div>
-        <ul v-if="review.conflicts?.length" class="text-sm">
+        <ul v-if="review.conflicts?.length" class="mt-4 text-sm">
           <li v-for="message in review.conflicts" :key="message">{{ message }}</li>
         </ul>
-        <Alert v-if="actionError" variant="destructive">
+        <Alert v-if="actionError" variant="destructive" class="mt-4">
           <AlertTitle>{{ actionError }}</AlertTitle>
         </Alert>
-        <label class="grid gap-1 text-sm">
+        <label class="mt-4 grid gap-1.5 text-sm">
           Rejection reason
-          <textarea v-model="reason" rows="3" class="border-input rounded-md border px-3 py-2" />
+          <textarea v-model="reason" rows="3" class="dpps-textarea" />
         </label>
-        <div class="flex gap-2">
+        <div class="mt-4 flex gap-2">
           <Button type="button" :disabled="busy" @click="decide('approve')">Approve</Button>
           <Button type="button" variant="outline" :disabled="busy" @click="decide('reject')">Reject</Button>
         </div>
-      </aside>
+      </PageSection>
     </div>
   </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -298,71 +300,73 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
 
     <template v-if="mode === 'list'">
-      <div class="flex flex-wrap items-end justify-between gap-3">
-        <div class="flex flex-wrap items-end gap-2">
-          <div class="grid gap-1">
+      <PageSection accent="sky" eyebrow="Register" title="Dealers">
+        <template #actions>
+          <Button v-if="canExport" type="button" variant="outline" size="sm" @click="exportExcel">Export Excel</Button>
+          <Button v-if="canCreate" type="button" size="sm" @click="startCreate">New Dealer</Button>
+        </template>
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="dpps-field">
             <Label for="dealer-search">Search</Label>
             <Input id="dealer-search" v-model="search" class="w-56" placeholder="Shop name or code" aria-label="Search" @keyup.enter="applyFilters" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="dealer-district">District</Label>
-            <select id="dealer-district" v-model="districtId" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="District" @change="tehsilId = ''">
+            <select id="dealer-district" v-model="districtId" class="dpps-select" aria-label="District" @change="tehsilId = ''">
               <option value="">All</option>
               <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="dealer-tehsil">Tehsil</Label>
-            <select id="dealer-tehsil" v-model="tehsilId" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Tehsil">
+            <select id="dealer-tehsil" v-model="tehsilId" class="dpps-select" aria-label="Tehsil">
               <option value="">All</option>
               <option v-for="tehsil in tehsilChoices" :key="tehsil.id" :value="tehsil.id">{{ tehsil.name }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="dealer-status">Status</Label>
-            <select id="dealer-status" v-model="status" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Status">
+            <select id="dealer-status" v-model="status" class="dpps-select" aria-label="Status">
               <option v-for="[value, label] in statuses" :key="value" :value="value">{{ label }}</option>
             </select>
           </div>
           <Button type="button" variant="outline" @click="applyFilters">Search</Button>
         </div>
-        <div class="flex gap-2">
-          <Button v-if="canExport" type="button" variant="outline" @click="exportExcel">Export Excel</Button>
-          <Button v-if="canCreate" type="button" @click="startCreate">New Dealer</Button>
-        </div>
-      </div>
+      </PageSection>
 
-      <div class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
-            <tr>
-              <th class="px-3 py-2 font-medium">Code</th>
-              <th class="px-3 py-2 font-medium">Shop Name</th>
-              <th class="px-3 py-2 font-medium">District</th>
-              <th class="px-3 py-2 font-medium">Expiry</th>
-              <th class="px-3 py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="rows.length === 0">
-              <td class="px-3 py-3 text-muted-foreground" colspan="5">No dealers.</td>
-            </tr>
-            <tr v-for="row in rows" :key="row.id" class="cursor-pointer border-b last:border-0" @click="openDealer(row)">
-              <td class="px-3 py-2">{{ row.dealer_code }}</td>
-              <td class="px-3 py-2">{{ row.shop_name }}</td>
-              <td class="px-3 py-2">{{ row.district_name }}</td>
-              <td class="px-3 py-2">{{ displayDate(row.expiry_date) }}</td>
-              <td class="px-3 py-2">{{ statusLabel(row.status) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Shop Name</th>
+                <th>District</th>
+                <th>Expiry</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="rows.length === 0">
+                <td class="text-muted-foreground" colspan="5">No dealers.</td>
+              </tr>
+              <tr v-for="row in rows" :key="row.id" class="dpps-row-link" @click="openDealer(row)">
+                <td class="font-medium">{{ row.dealer_code }}</td>
+                <td>{{ row.shop_name }}</td>
+                <td>{{ row.district_name }}</td>
+                <td class="tabular-nums">{{ displayDate(row.expiry_date) }}</td>
+                <td><StatusBadge :value="row.status" :label="statusLabel(row.status)" /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
       <div class="flex items-center justify-between text-sm">
         <span class="text-muted-foreground">{{ showing }}</span>
         <div class="flex gap-2">
@@ -372,68 +376,75 @@ onMounted(async () => {
       </div>
     </template>
 
-    <form v-else class="grid max-w-xl gap-3" @submit.prevent="save(false)">
-      <h2 class="text-lg font-semibold">{{ dealer ? dealer.shop_name : 'New dealer' }}</h2>
-      <Alert v-if="formError" variant="destructive">
-        <AlertTitle>{{ formError }}</AlertTitle>
-      </Alert>
-      <div class="grid gap-1">
-        <Label for="shop-name">Shop name</Label>
-        <Input id="shop-name" v-model="form.shop_name" required aria-label="Shop name" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-district">District</Label>
-        <select id="form-district" v-model="form.district_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="District" @change="form.tehsil_id = ''">
-          <option value="">Choose</option>
-          <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-tehsil">Tehsil</Label>
-        <select id="form-tehsil" v-model="form.tehsil_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Tehsil">
-          <option value="">None</option>
-          <option v-for="tehsil in formTehsils" :key="tehsil.id" :value="tehsil.id">{{ tehsil.name }}</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="shop-address">Business address</Label>
-        <Input id="shop-address" v-model="form.business_address" required aria-label="Business address" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="shop-mobile">Mobile</Label>
-        <Input id="shop-mobile" v-model="form.mobile" aria-label="Mobile" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="shop-email">Email</Label>
-        <Input id="shop-email" v-model="form.email" type="email" aria-label="Email" />
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div class="grid gap-1">
-          <Label for="shop-lat">GPS latitude</Label>
-          <Input id="shop-lat" v-model="form.gps_lat" aria-label="GPS latitude" />
+    <form v-else class="grid gap-6" @submit.prevent="save(false)">
+      <PageSection accent="sky" eyebrow="Register" :title="dealer ? dealer.shop_name : 'New dealer'">
+        <Alert v-if="formError" variant="destructive" class="mb-4">
+          <AlertTitle>{{ formError }}</AlertTitle>
+        </Alert>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="dpps-field sm:col-span-2">
+            <Label for="shop-name">Shop name</Label>
+            <Input id="shop-name" v-model="form.shop_name" required aria-label="Shop name" />
+          </div>
+          <div class="dpps-field">
+            <Label for="form-district">District</Label>
+            <select id="form-district" v-model="form.district_id" class="dpps-select" required aria-label="District" @change="form.tehsil_id = ''">
+              <option value="">Choose</option>
+              <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="form-tehsil">Tehsil</Label>
+            <select id="form-tehsil" v-model="form.tehsil_id" class="dpps-select" aria-label="Tehsil">
+              <option value="">None</option>
+              <option v-for="tehsil in formTehsils" :key="tehsil.id" :value="tehsil.id">{{ tehsil.name }}</option>
+            </select>
+          </div>
+          <div class="dpps-field sm:col-span-2">
+            <Label for="shop-address">Business address</Label>
+            <Input id="shop-address" v-model="form.business_address" required aria-label="Business address" />
+          </div>
+          <div class="dpps-field">
+            <Label for="shop-mobile">Mobile</Label>
+            <Input id="shop-mobile" v-model="form.mobile" aria-label="Mobile" />
+          </div>
+          <div class="dpps-field">
+            <Label for="shop-email">Email</Label>
+            <Input id="shop-email" v-model="form.email" type="email" aria-label="Email" />
+          </div>
+          <div class="dpps-field">
+            <Label for="shop-lat">GPS latitude</Label>
+            <Input id="shop-lat" v-model="form.gps_lat" aria-label="GPS latitude" />
+          </div>
+          <div class="dpps-field">
+            <Label for="shop-lng">GPS longitude</Label>
+            <Input id="shop-lng" v-model="form.gps_lng" aria-label="GPS longitude" />
+          </div>
         </div>
-        <div class="grid gap-1">
-          <Label for="shop-lng">GPS longitude</Label>
-          <Input id="shop-lng" v-model="form.gps_lng" aria-label="GPS longitude" />
+        <Alert v-for="warning in warnings" :key="warning" class="mt-4">
+          <AlertTitle>{{ warning }}</AlertTitle>
+        </Alert>
+        <div v-if="warnings.length" class="mt-4 dpps-field">
+          <Label for="dealer-reason">Reason</Label>
+          <Input id="dealer-reason" v-model="warningReason" aria-label="Warning reason" />
         </div>
-      </div>
-      <Alert v-for="warning in warnings" :key="warning">
-        <AlertTitle>{{ warning }}</AlertTitle>
-      </Alert>
-      <div v-if="warnings.length" class="grid gap-1">
-        <Label for="dealer-reason">Reason</Label>
-        <Input id="dealer-reason" v-model="warningReason" aria-label="Warning reason" />
-      </div>
-      <div v-if="dealer && canDelete" class="grid gap-1">
-        <Label for="dealer-delete-reason">Delete reason</Label>
-        <Input id="dealer-delete-reason" v-model="deleteReason" aria-label="Delete reason" />
-      </div>
-      <div class="flex gap-2">
-        <Button type="button" variant="outline" @click="mode = 'list'; load()">Cancel</Button>
-        <Button v-if="warnings.length" type="button" :disabled="saving" @click="save(true)">Confirm and save</Button>
-        <Button v-else type="submit" :disabled="saving || (dealer && !canUpdate)">Save</Button>
-        <Button v-if="dealer && canDelete" type="button" variant="outline" :disabled="saving" @click="removeDealer">Delete</Button>
-      </div>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <Button type="button" variant="outline" @click="mode = 'list'; load()">Cancel</Button>
+          <Button v-if="warnings.length" type="button" :disabled="saving" @click="save(true)">Confirm and save</Button>
+          <Button v-else type="submit" :disabled="saving || (dealer && !canUpdate)">Save</Button>
+        </div>
+      </PageSection>
+      <PageSection v-if="dealer && canDelete" accent="rose" eyebrow="Danger zone" title="Delete dealer">
+        <div class="grid max-w-lg gap-3">
+          <div class="dpps-field">
+            <Label for="dealer-delete-reason">Delete reason</Label>
+            <Input id="dealer-delete-reason" v-model="deleteReason" aria-label="Delete reason" />
+          </div>
+          <div>
+            <Button type="button" variant="outline" :disabled="saving" @click="removeDealer">Delete</Button>
+          </div>
+        </div>
+      </PageSection>
     </form>
   </div>
 </template>

@@ -1,5 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,6 +25,10 @@ function displayDate(value) {
   const [year, month, day] = String(value).slice(0, 10).split('-')
 
   return day && month && year ? `${day}-${month}-${year}` : value
+}
+
+function statusValue(row) {
+  return row.verification_status === 'verified' ? 'approved' : row.verification_status
 }
 
 function statusLabel(row) {
@@ -87,58 +93,73 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold">Documents</h2>
-      <Button type="button" @click="replaceId = null; open = true">Upload</Button>
-    </div>
-    <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
-    <p v-if="notice" class="text-sm">{{ notice }}</p>
-    <form v-if="open" class="grid max-w-lg gap-3 rounded-md border p-4" @submit.prevent="save">
-      <div class="grid gap-1">
-        <Label for="title">Title</Label>
-        <Input id="title" v-model="form.title" required />
+  <div class="grid gap-6">
+    <PageSection accent="rose" eyebrow="Company portal" title="Documents">
+      <template #actions>
+        <Button type="button" size="sm" @click="replaceId = null; open = true">Upload</Button>
+      </template>
+      <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
+      <p v-if="notice" class="text-sm">{{ notice }}</p>
+    </PageSection>
+
+    <PageSection v-if="open" accent="violet" eyebrow="Documents" :title="replaceId ? 'Replace document' : 'Upload document'">
+      <form class="grid max-w-lg gap-3" @submit.prevent="save">
+        <div class="dpps-field">
+          <Label for="title">Title</Label>
+          <Input id="title" v-model="form.title" required />
+        </div>
+        <div class="dpps-field">
+          <Label for="type">Type</Label>
+          <select id="type" v-model="form.document_type_id" class="dpps-select" required>
+            <option value="">Choose</option>
+            <option v-for="row in types" :key="row.id" :value="row.id">{{ row.name }}</option>
+          </select>
+        </div>
+        <div class="dpps-field">
+          <Label for="file">File</Label>
+          <input id="file" type="file" required @change="onFile">
+        </div>
+        <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
+        <div class="flex gap-2">
+          <Button type="submit">Submit</Button>
+          <Button type="button" variant="outline" @click="open = false">Cancel</Button>
+        </div>
+      </form>
+    </PageSection>
+
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Type</th>
+              <th>Expiry</th>
+              <th>Version</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td class="font-medium">{{ row.title }}</td>
+              <td>{{ row.type_name }}</td>
+              <td class="tabular-nums">{{ displayDate(row.expiry_date) }}</td>
+              <td>{{ row.version_no }}</td>
+              <td><StatusBadge :value="statusValue(row)" :label="statusLabel(row)" /></td>
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  <Button type="button" variant="outline" size="sm" @click="openFile(row)">Open</Button>
+                  <Button type="button" variant="outline" size="sm" @click="replaceId = row.id; open = true">Replace</Button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="rows.length === 0 && !loadError">
+              <td class="text-muted-foreground" colspan="6">No documents.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div class="grid gap-1">
-        <Label for="type">Type</Label>
-        <select id="type" v-model="form.document_type_id" class="border-input h-9 rounded-md border px-3 text-sm" required>
-          <option value="">Choose</option>
-          <option v-for="row in types" :key="row.id" :value="row.id">{{ row.name }}</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="file">File</Label>
-        <input id="file" type="file" required @change="onFile">
-      </div>
-      <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
-      <Button type="submit">Submit</Button>
-    </form>
-    <div class="overflow-x-auto rounded-md border">
-      <table class="w-full text-sm">
-        <thead class="bg-muted/50 text-left">
-          <tr>
-            <th class="px-3 py-2">Title</th>
-            <th class="px-3 py-2">Type</th>
-            <th class="px-3 py-2">Expiry</th>
-            <th class="px-3 py-2">Version</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-t">
-            <td class="px-3 py-2">{{ row.title }}</td>
-            <td class="px-3 py-2">{{ row.type_name }}</td>
-            <td class="px-3 py-2">{{ displayDate(row.expiry_date) }}</td>
-            <td class="px-3 py-2">{{ row.version_no }}</td>
-            <td class="px-3 py-2">{{ statusLabel(row) }}</td>
-            <td class="px-3 py-2">
-              <Button type="button" variant="outline" @click="openFile(row)">Open</Button>
-              <Button type="button" variant="outline" class="ml-2" @click="replaceId = row.id; open = true">Replace</Button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    </PageSection>
   </div>
 </template>

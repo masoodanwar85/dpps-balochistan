@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -172,28 +173,28 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid max-w-xl gap-4">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <h1 class="text-xl font-semibold">Record a previous license</h1>
-      <Button type="button" variant="outline" @click="router.push({ name: 'licenses' })">Back to licenses</Button>
-    </div>
+  <div class="grid gap-6">
+    <PageSection accent="violet" eyebrow="Issuance" title="Record a previous license">
+      <template #actions>
+        <Button type="button" variant="outline" size="sm" @click="router.push({ name: 'licenses' })">Back to licenses</Button>
+      </template>
+      <p class="text-muted-foreground text-sm">
+        Use this for a license that was already granted. The end date can be {{ latestEndLabel || 'the last day of this year' }} or any earlier date.
+        The start date is the end date minus the license period, plus one day.
+      </p>
+      <Alert v-if="loadError" variant="destructive" class="mt-4">
+        <AlertTitle>{{ loadError }}</AlertTitle>
+      </Alert>
+      <Alert v-if="notice" class="mt-4">
+        <AlertTitle>{{ notice }}</AlertTitle>
+      </Alert>
+    </PageSection>
 
-    <p class="text-muted-foreground text-sm">
-      Use this for a license that was already granted. The end date can be {{ latestEndLabel || 'the last day of this year' }} or any earlier date.
-      The start date is the end date minus the license period, plus one day.
-    </p>
-
-    <Alert v-if="loadError" variant="destructive">
-      <AlertTitle>{{ loadError }}</AlertTitle>
-    </Alert>
-    <Alert v-if="notice">
-      <AlertTitle>{{ notice }}</AlertTitle>
-    </Alert>
-
-    <form class="grid gap-3" @submit.prevent="save">
-      <div class="grid gap-1">
+    <PageSection accent="slate" eyebrow="License" title="Details">
+    <form class="grid max-w-xl gap-4" @submit.prevent="save">
+      <div class="dpps-field">
         <Label for="prev-type">Company or dealer</Label>
-        <select id="prev-type" v-model="partyType" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Company or dealer">
+        <select id="prev-type" v-model="partyType" class="dpps-select" aria-label="Company or dealer">
           <option value="company">Company</option>
           <option value="dealer">Dealer</option>
         </select>
@@ -205,45 +206,46 @@ onMounted(async () => {
       </div>
 
       <div v-else class="grid gap-2">
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="prev-search">Find {{ partyLabel.toLowerCase() }}</Label>
           <div class="flex gap-2">
             <Input id="prev-search" v-model="search" :aria-label="`Find ${partyLabel.toLowerCase()}`" @keyup.enter="findParties" />
             <Button type="button" variant="outline" :disabled="searching" @click="findParties">Search</Button>
           </div>
         </div>
-        <div v-if="matches.length" class="grid gap-1">
+        <div v-if="matches.length" class="dpps-field">
           <Button v-for="row in matches" :key="row.id" type="button" variant="outline" class="justify-start" @click="choose(row)">
             {{ partyName(row) }}
           </Button>
         </div>
       </div>
 
-      <div class="grid gap-1">
+      <div class="dpps-field">
         <Label for="prev-no">License number</Label>
         <Input id="prev-no" v-model="licenseNo" required maxlength="100" aria-label="License number" />
       </div>
 
-      <div class="grid gap-1">
+      <div class="dpps-field">
         <Label for="prev-kind">Kind</Label>
-        <select id="prev-kind" v-model="licenseKind" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Kind">
+        <select id="prev-kind" v-model="licenseKind" class="dpps-select" aria-label="Kind">
           <option value="registration">Registration</option>
           <option value="renewal">Renewal</option>
         </select>
       </div>
 
-      <div class="grid gap-1">
+      <div class="dpps-field">
         <Label for="prev-end">End date</Label>
         <Input id="prev-end" v-model="validTo" type="date" :max="latestEnd" required aria-label="End date" />
         <p class="text-muted-foreground text-sm">Latest date: {{ latestEndLabel || '—' }}</p>
       </div>
 
-      <div class="grid gap-1">
+      <div class="dpps-field">
         <Label for="prev-start">Start date</Label>
         <Input id="prev-start" :model-value="validFrom" type="date" disabled aria-label="Start date" />
       </div>
 
       <Button type="submit" :disabled="saving">Save license</Button>
     </form>
+    </PageSection>
   </div>
 </template>

@@ -1,5 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -312,7 +314,7 @@ onMounted(loadScreen)
 </script>
 
 <template>
-  <div class="grid gap-8">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
@@ -320,35 +322,34 @@ onMounted(loadScreen)
       <AlertTitle>{{ notice }}</AlertTitle>
     </Alert>
 
-    <section v-if="auth.can('users.manage')" class="grid gap-4">
-      <div class="flex flex-wrap items-end gap-3">
-        <h2 class="text-lg font-semibold">Users</h2>
-        <Button @click="startCreate">New User</Button>
-      </div>
-
-      <form class="grid gap-3 md:grid-cols-4" @submit.prevent="applyFilters">
-        <div class="grid gap-1">
+    <section v-if="auth.can('users.manage')" class="grid gap-6">
+      <PageSection accent="slate" eyebrow="Access" title="Users">
+        <template #actions>
+          <Button size="sm" @click="startCreate">New User</Button>
+        </template>
+      <form class="flex flex-wrap items-end gap-3" @submit.prevent="applyFilters">
+        <div class="dpps-field">
           <Label for="user-search">Search</Label>
           <Input id="user-search" v-model="filters.search" placeholder="Name, email, or mobile" />
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="user-type">Type</Label>
-          <select id="user-type" v-model="filters.user_type" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
+          <select id="user-type" v-model="filters.user_type" class="dpps-select">
             <option value="">All</option>
             <option value="staff">Staff</option>
             <option value="company">Company</option>
           </select>
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="user-role">Role</Label>
-          <select id="user-role" v-model="filters.role" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
+          <select id="user-role" v-model="filters.role" class="dpps-select">
             <option value="">All</option>
             <option v-for="role in roles" :key="role.id" :value="role.name">{{ role.name }}</option>
           </select>
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="user-active">Active</Label>
-          <select id="user-active" v-model="filters.is_active" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
+          <select id="user-active" v-model="filters.is_active" class="dpps-select">
             <option value="">All</option>
             <option value="1">Active</option>
             <option value="0">Inactive</option>
@@ -356,45 +357,46 @@ onMounted(loadScreen)
         </div>
         <Button type="submit" variant="outline">Apply</Button>
       </form>
+      </PageSection>
 
-      <form v-if="showForm" class="grid gap-4 rounded-xl border bg-card p-4" @submit.prevent="saveUser">
-        <h3 class="font-medium">{{ editingId ? 'Edit user' : 'New user' }}</h3>
+      <PageSection v-if="showForm" accent="violet" eyebrow="Access" :title="editingId ? 'Edit user' : 'New user'">
+      <form class="grid gap-4" @submit.prevent="saveUser">
         <Alert v-if="formError" variant="destructive">
           <AlertTitle>{{ formError }}</AlertTitle>
         </Alert>
         <div class="grid gap-3 md:grid-cols-2">
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="name">Name</Label>
             <Input id="name" v-model="form.name" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="email">Email</Label>
             <Input id="email" v-model="form.email" type="email" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="mobile">Mobile</Label>
             <Input id="mobile" v-model="form.mobile" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="type">Type</Label>
-            <select id="type" v-model="form.user_type" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm" @change="onTypeChange">
+            <select id="type" v-model="form.user_type" class="dpps-select" @change="onTypeChange">
               <option value="staff">Staff</option>
               <option value="company">Company</option>
             </select>
           </div>
-          <div v-if="form.user_type === 'company'" class="grid gap-1">
+          <div v-if="form.user_type === 'company'" class="dpps-field">
             <Label for="company">Company</Label>
-            <select id="company" v-model="form.company_id" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm" required>
+            <select id="company" v-model="form.company_id" class="dpps-select" required>
               <option value="">Select a company</option>
               <option v-for="company in options.companies" :key="company.id" :value="company.id">{{ company.name }}</option>
             </select>
           </div>
           <template v-if="!editingId">
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="temp-password">Temporary password</Label>
               <Input id="temp-password" v-model="form.password" type="password" autocomplete="new-password" required />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="temp-password-confirm">Confirm temporary password</Label>
               <Input id="temp-password-confirm" v-model="form.password_confirmation" type="password" autocomplete="new-password" required />
             </div>
@@ -427,18 +429,19 @@ onMounted(loadScreen)
           <Button type="button" variant="outline" @click="showForm = false">Cancel</Button>
         </div>
       </form>
+      </PageSection>
 
-      <form v-if="resetId" class="grid max-w-md gap-3 rounded-xl border bg-card p-4" @submit.prevent="saveReset">
-        <h3 class="font-medium">Reset password</h3>
+      <PageSection v-if="resetId" accent="orange" eyebrow="Access" title="Reset password">
+      <form class="grid max-w-md gap-3" @submit.prevent="saveReset">
         <p class="text-sm text-muted-foreground">This sets a temporary password. The user must change it at next login.</p>
         <Alert v-if="resetError" variant="destructive">
           <AlertTitle>{{ resetError }}</AlertTitle>
         </Alert>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="reset-password">Temporary password</Label>
           <Input id="reset-password" v-model="resetForm.password" type="password" required />
         </div>
-        <div class="grid gap-1">
+        <div class="dpps-field">
           <Label for="reset-password-confirm">Confirm temporary password</Label>
           <Input id="reset-password-confirm" v-model="resetForm.password_confirmation" type="password" required />
         </div>
@@ -447,41 +450,46 @@ onMounted(loadScreen)
           <Button type="button" variant="outline" @click="resetId = null">Cancel</Button>
         </div>
       </form>
+      </PageSection>
 
-      <div class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
             <tr>
-              <th class="px-3 py-2 font-medium">Name</th>
-              <th class="px-3 py-2 font-medium">Email</th>
-              <th class="px-3 py-2 font-medium">Type</th>
-              <th class="px-3 py-2 font-medium">Role(s)</th>
-              <th class="px-3 py-2 font-medium">Company/District</th>
-              <th class="px-3 py-2 font-medium">Last login</th>
-              <th class="px-3 py-2 font-medium">Active</th>
-              <th class="px-3 py-2 font-medium">Actions</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Type</th>
+              <th>Role(s)</th>
+              <th>Company/District</th>
+              <th>Last login</th>
+              <th>Active</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="user in users" :key="user.id" class="border-b last:border-0">
-              <td class="px-3 py-2">{{ user.name }}</td>
-              <td class="px-3 py-2">{{ user.email }}</td>
-              <td class="px-3 py-2">{{ user.user_type }}</td>
-              <td class="px-3 py-2">{{ user.roles.join(', ') }}</td>
-              <td class="px-3 py-2">{{ scopeLabel(user) }}</td>
-              <td class="px-3 py-2">{{ formatLogin(user.last_login_at) }}</td>
-              <td class="px-3 py-2">{{ user.is_active ? 'Yes' : 'No' }}</td>
-              <td class="px-3 py-2">
-                <button type="button" class="underline" @click="startEdit(user)">Edit</button>
-                <button type="button" class="ml-3 underline" @click="startReset(user)">Reset password</button>
+            <tr v-for="user in users" :key="user.id">
+              <td class="font-medium">{{ user.name }}</td>
+              <td>{{ user.email }}</td>
+              <td><StatusBadge :value="user.user_type" :label="user.user_type" /></td>
+              <td>{{ user.roles.join(', ') }}</td>
+              <td>{{ scopeLabel(user) }}</td>
+              <td class="tabular-nums">{{ formatLogin(user.last_login_at) }}</td>
+              <td><StatusBadge :value="user.is_active" :label="user.is_active ? 'Yes' : 'No'" /></td>
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  <Button type="button" variant="outline" size="sm" @click="startEdit(user)">Edit</Button>
+                  <Button type="button" variant="outline" size="sm" @click="startReset(user)">Reset password</Button>
+                </div>
               </td>
             </tr>
             <tr v-if="users.length === 0">
-              <td colspan="8" class="px-3 py-6 text-muted-foreground">No users match these filters.</td>
+              <td colspan="8" class="text-muted-foreground">No users match these filters.</td>
             </tr>
           </tbody>
         </table>
-      </div>
+        </div>
+      </PageSection>
       <div class="flex items-center gap-3 text-sm">
         <Button type="button" variant="outline" size="sm" :disabled="meta.current_page <= 1" @click="changePage(meta.current_page - 1)">Previous</Button>
         <span>Page {{ meta.current_page }} of {{ meta.last_page }}</span>
@@ -489,37 +497,37 @@ onMounted(loadScreen)
       </div>
     </section>
 
-    <section v-if="auth.can('roles.manage')" class="grid gap-4">
-      <div class="flex flex-wrap items-center gap-3">
-        <h2 class="text-lg font-semibold">Roles</h2>
-        <select
-          class="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
-          :value="selectedRoleId"
-          @change="chooseRole(Number($event.target.value))"
-        >
-          <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
-        </select>
-        <Button :disabled="saving || !selectedRoleId" @click="saveMatrix">Save</Button>
-      </div>
+    <section v-if="auth.can('roles.manage')" class="grid gap-6">
+      <PageSection accent="violet" eyebrow="Access" title="Roles">
+        <template #actions>
+          <select
+            class="dpps-select"
+            :value="selectedRoleId"
+            @change="chooseRole(Number($event.target.value))"
+          >
+            <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
+          </select>
+          <Button size="sm" :disabled="saving || !selectedRoleId" @click="saveMatrix">Save</Button>
+        </template>
       <Alert v-if="matrixError" variant="destructive">
         <AlertTitle>{{ matrixError }}</AlertTitle>
       </Alert>
-      <div class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
+      <div class="dpps-table-wrap">
+        <table class="dpps-table">
+          <thead>
             <tr>
-              <th class="px-3 py-2 font-medium">Module</th>
-              <th class="px-3 py-2 font-medium">view</th>
-              <th class="px-3 py-2 font-medium">create</th>
-              <th class="px-3 py-2 font-medium">update</th>
-              <th class="px-3 py-2 font-medium">delete</th>
-              <th class="px-3 py-2 font-medium">other</th>
+              <th>Module</th>
+              <th>view</th>
+              <th>create</th>
+              <th>update</th>
+              <th>delete</th>
+              <th>other</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="module in modules" :key="module.module" class="border-b last:border-0">
-              <td class="px-3 py-2">{{ module.module }}</td>
-              <td v-for="column in ['view', 'create', 'update', 'delete']" :key="column" class="px-3 py-2">
+            <tr v-for="module in modules" :key="module.module">
+              <td class="font-medium">{{ module.module }}</td>
+              <td v-for="column in ['view', 'create', 'update', 'delete']" :key="column">
                 <input
                   v-if="module[column]"
                   type="checkbox"
@@ -529,7 +537,7 @@ onMounted(loadScreen)
                 >
                 <span v-else>—</span>
               </td>
-              <td class="px-3 py-2">
+              <td>
                 <div v-if="module.other.length" class="flex flex-wrap gap-3">
                   <label v-for="item in module.other" :key="item.key" class="flex items-center gap-1">
                     <input
@@ -546,6 +554,7 @@ onMounted(loadScreen)
           </tbody>
         </table>
       </div>
+      </PageSection>
     </section>
   </div>
 </template>

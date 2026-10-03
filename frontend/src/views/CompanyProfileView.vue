@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -852,50 +854,46 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
 
     <template v-if="company">
-      <div class="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 class="text-lg font-semibold">{{ company.name }} ({{ company.company_code }})</h2>
-          <p class="text-sm text-muted-foreground">
-            {{ statusLabel(company.status) }}
-            <span v-if="profile.license">
-              · License {{ profile.license.license_no }}
-              · {{ displayDate(profile.license.valid_from) }} → {{ displayDate(profile.license.valid_to) }}
-              <span v-if="profile.license.days_remaining !== null">({{ profile.license.days_remaining }} d)</span>
-            </span>
-            <span v-if="profile.license?.documents_status === 'incomplete'"> · Docs incomplete</span>
-          </p>
+      <PageSection accent="emerald" eyebrow="Company profile" :title="`${company.name} (${company.company_code})`">
+        <template #actions>
+          <Button v-if="canUpdate" type="button" variant="outline" size="sm" @click="router.push({ name: 'companies', query: { edit: company.id } })">Edit</Button>
+          <Button v-if="canApply" type="button" variant="outline" size="sm" @click="router.push({ name: 'applications', query: { new: 'company', id: company.id } })">New Application</Button>
+          <Button v-else type="button" variant="outline" size="sm" disabled>New Application</Button>
+          <Button v-if="canSuspendLicense" type="button" variant="outline" size="sm" @click="startSuspend">Suspend</Button>
+          <Button v-else type="button" variant="outline" size="sm" disabled>Suspend</Button>
+          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate">Certificate</Button>
+          <Button v-else type="button" variant="outline" size="sm" disabled>Certificate</Button>
+          <Button type="button" variant="outline" size="sm" @click="tab = 'activity'">Activity</Button>
+          <Button type="button" variant="outline" size="sm" @click="router.push({ name: 'companies' })">Back</Button>
+        </template>
+        <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <StatusBadge :value="company.status" :label="statusLabel(company.status)" />
+          <template v-if="profile.license">
+            <span>License {{ profile.license.license_no }}</span>
+            <span>{{ displayDate(profile.license.valid_from) }} → {{ displayDate(profile.license.valid_to) }}</span>
+            <span v-if="profile.license.days_remaining !== null">({{ profile.license.days_remaining }} d)</span>
+          </template>
+          <StatusBadge v-if="profile.license?.documents_status === 'incomplete'" value="incomplete" label="Docs incomplete" />
         </div>
-        <div class="flex flex-wrap gap-2">
-          <Button v-if="canUpdate" type="button" variant="outline" @click="router.push({ name: 'companies', query: { edit: company.id } })">Edit</Button>
-          <Button v-if="canApply" type="button" variant="outline" @click="router.push({ name: 'applications', query: { new: 'company', id: company.id } })">New Application</Button>
-          <Button v-else type="button" variant="outline" disabled>New Application</Button>
-          <Button v-if="canSuspendLicense" type="button" variant="outline" @click="startSuspend">Suspend</Button>
-          <Button v-else type="button" variant="outline" disabled>Suspend</Button>
-          <Button v-if="profile.license?.id" type="button" variant="outline" @click="openCertificate">Certificate</Button>
-          <Button v-else type="button" variant="outline" disabled>Certificate</Button>
-          <Button type="button" variant="outline" @click="tab = 'activity'">Activity</Button>
-          <Button type="button" variant="outline" @click="router.push({ name: 'companies' })">Back</Button>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button
+            v-for="[key, label] in tabs"
+            :key="key"
+            type="button"
+            class="rounded-md px-3 py-1.5 text-sm ring-1 transition"
+            :class="tab === key ? 'bg-emerald-50 font-medium text-emerald-900 ring-emerald-200' : 'bg-background text-muted-foreground ring-border hover:bg-muted'"
+            @click="selectTab(key)"
+          >
+            {{ label }}
+          </button>
         </div>
-      </div>
-
-      <div class="flex flex-wrap gap-2 border-b pb-2">
-        <button
-          v-for="[key, label] in tabs"
-          :key="key"
-          type="button"
-          class="rounded-md px-3 py-1 text-sm"
-          :class="tab === key ? 'bg-accent font-medium' : 'text-muted-foreground'"
-          @click="selectTab(key)"
-        >
-          {{ label }}
-        </button>
-      </div>
+      </PageSection>
 
       <Alert v-if="notice">
         <AlertTitle>{{ notice }}</AlertTitle>
@@ -903,57 +901,133 @@ onMounted(async () => {
       <Alert v-if="formError" variant="destructive">
         <AlertTitle>{{ formError }}</AlertTitle>
       </Alert>
-      <form v-if="panel === 'end'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="confirmEnd">
-        <h3 class="font-medium">End employment — {{ endForm.name }}</h3>
-        <div class="grid gap-1">
-          <Label for="end-date">End date</Label>
-          <Input id="end-date" v-model="endForm.end_date" type="date" required aria-label="End date" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="end-reason">Reason</Label>
-          <Input id="end-reason" v-model="endForm.end_reason" required aria-label="Reason" />
-        </div>
-        <Alert v-if="endForm.note">
-          <AlertTitle>{{ endForm.note }}</AlertTitle>
-        </Alert>
-        <div class="flex gap-2">
-          <Button type="button" variant="outline" @click="panel = ''">Cancel</Button>
-          <Button type="submit" :disabled="saving">Confirm</Button>
-        </div>
-      </form>
+      <PageSection v-if="panel === 'end'" accent="rose" eyebrow="Staff" :title="`End employment — ${endForm.name}`">
+        <form class="grid max-w-xl gap-3" @submit.prevent="confirmEnd">
+          <div class="dpps-field">
+            <Label for="end-date">End date</Label>
+            <Input id="end-date" v-model="endForm.end_date" type="date" required aria-label="End date" />
+          </div>
+          <div class="dpps-field">
+            <Label for="end-reason">Reason</Label>
+            <Input id="end-reason" v-model="endForm.end_reason" required aria-label="Reason" />
+          </div>
+          <Alert v-if="endForm.note">
+            <AlertTitle>{{ endForm.note }}</AlertTitle>
+          </Alert>
+          <div class="flex gap-2">
+            <Button type="button" variant="outline" @click="panel = ''">Cancel</Button>
+            <Button type="submit" :disabled="saving">Confirm</Button>
+          </div>
+        </form>
+      </PageSection>
 
-      <section v-if="tab === 'overview'" class="grid gap-3 text-sm">
-        <h3 class="font-medium">Company profile</h3>
-        <p>{{ legalTypes[company.legal_type] || company.legal_type }} · NTN {{ company.ntn || '—' }}</p>
-        <p>
-          Incorporation {{ company.incorporation_no || '—' }}
-          <span v-if="company.incorporation_date"> · {{ displayDate(company.incorporation_date) }}</span>
-          · PCPA {{ company.pcpa_member ? 'Yes' : 'No' }}
-          · CropLife {{ company.croplife_member ? 'Yes' : 'No' }}
-        </p>
-        <h3 class="font-medium">Contact</h3>
-        <p>{{ company.head_office_address }}, {{ company.city }}<span v-if="company.province_name">, {{ company.province_name }}</span></p>
-        <p>Landline {{ company.landline || '—' }} · Mobile {{ company.mobile || '—' }} · Email {{ company.email || '—' }}</p>
-        <p>Contact person {{ profile.contacts.map((row) => row.name).join(', ') || '—' }}</p>
-        <Alert v-for="alert in profile.alerts" :key="alert.kind">
-          <AlertTitle>{{ alert.message }}</AlertTitle>
-        </Alert>
-      </section>
+      <template v-if="tab === 'overview'">
+        <div class="grid gap-6 lg:grid-cols-2">
+          <PageSection accent="emerald" eyebrow="Profile" title="Company profile">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3">
+                <p class="text-xs font-medium text-emerald-800">Legal type</p>
+                <p class="mt-1 font-semibold text-emerald-950">{{ legalTypes[company.legal_type] || company.legal_type }}</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                <p class="text-xs font-medium text-slate-600">NTN</p>
+                <p class="mt-1 font-semibold text-slate-950">{{ company.ntn || '—' }}</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                <p class="text-xs font-medium text-slate-600">Incorporation no</p>
+                <p class="mt-1 font-semibold text-slate-950">{{ company.incorporation_no || '—' }}</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                <p class="text-xs font-medium text-slate-600">Incorporation date</p>
+                <p class="mt-1 font-semibold text-slate-950">{{ company.incorporation_date ? displayDate(company.incorporation_date) : '—' }}</p>
+              </div>
+              <div class="rounded-lg border px-3 py-3" :class="company.pcpa_member ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'">
+                <p class="text-xs font-medium" :class="company.pcpa_member ? 'text-emerald-800' : 'text-slate-600'">PCPA</p>
+                <p class="mt-1 font-semibold" :class="company.pcpa_member ? 'text-emerald-950' : 'text-slate-950'">{{ company.pcpa_member ? 'Yes' : 'No' }}</p>
+              </div>
+              <div class="rounded-lg border px-3 py-3" :class="company.croplife_member ? 'border-sky-200 bg-sky-50' : 'border-slate-200 bg-slate-50'">
+                <p class="text-xs font-medium" :class="company.croplife_member ? 'text-sky-800' : 'text-slate-600'">CropLife</p>
+                <p class="mt-1 font-semibold" :class="company.croplife_member ? 'text-sky-950' : 'text-slate-950'">{{ company.croplife_member ? 'Yes' : 'No' }}</p>
+              </div>
+            </div>
+          </PageSection>
 
-      <section v-else-if="tab === 'people'" class="grid gap-3">
-        <div v-if="canStaff">
-          <Button type="button" @click="startPerson('ceo')">Add person</Button>
+          <PageSection accent="sky" eyebrow="Contact" title="Head office">
+            <div class="grid gap-3">
+              <div class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 sm:col-span-2">
+                <p class="text-xs font-medium text-sky-800">Address</p>
+                <p class="mt-1 font-semibold text-sky-950">
+                  {{ company.head_office_address }}, {{ company.city }}<span v-if="company.province_name">, {{ company.province_name }}</span>
+                </p>
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p class="text-xs font-medium text-slate-600">Landline</p>
+                  <p class="mt-1 font-semibold text-slate-950">{{ company.landline || '—' }}</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p class="text-xs font-medium text-slate-600">Mobile</p>
+                  <p class="mt-1 font-semibold text-slate-950">{{ company.mobile || '—' }}</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p class="text-xs font-medium text-slate-600">Email</p>
+                  <p class="mt-1 font-semibold text-slate-950 break-all">{{ company.email || '—' }}</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                  <p class="text-xs font-medium text-slate-600">Contact person</p>
+                  <p class="mt-1 font-semibold text-slate-950">{{ profile.contacts.map((row) => row.name).join(', ') || '—' }}</p>
+                </div>
+              </div>
+            </div>
+          </PageSection>
         </div>
-        <form v-if="panel === 'person'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="savePerson(false)">
-          <h3 class="font-medium">Add person</h3>
-          <div class="grid gap-1">
+
+        <PageSection v-if="profile.license" accent="violet" eyebrow="License" title="Current license">
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-3">
+              <p class="text-xs font-medium text-violet-800">License no</p>
+              <p class="mt-1 font-semibold text-violet-950">{{ profile.license.license_no }}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+              <p class="text-xs font-medium text-slate-600">Valid from</p>
+              <p class="mt-1 font-semibold text-slate-950 tabular-nums">{{ displayDate(profile.license.valid_from) }}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+              <p class="text-xs font-medium text-slate-600">Valid to</p>
+              <p class="mt-1 font-semibold text-slate-950 tabular-nums">{{ displayDate(profile.license.valid_to) }}</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+              <p class="text-xs font-medium text-slate-600">Days remaining</p>
+              <p class="mt-1 font-semibold text-slate-950 tabular-nums">{{ profile.license.days_remaining ?? '—' }}</p>
+            </div>
+          </div>
+        </PageSection>
+
+        <PageSection v-if="profile.alerts?.length" accent="amber" eyebrow="Alerts" title="Attention needed">
+          <div class="grid gap-2">
+            <Alert v-for="alert in profile.alerts" :key="alert.kind">
+              <AlertTitle>{{ alert.message }}</AlertTitle>
+            </Alert>
+          </div>
+        </PageSection>
+      </template>
+
+      <template v-else-if="tab === 'people'">
+      <PageSection accent="sky" eyebrow="People" title="CEO and directors">
+        <template #actions>
+          <Button v-if="canStaff" type="button" size="sm" @click="startPerson('ceo')">Add person</Button>
+        </template>
+      </PageSection>
+      <PageSection v-if="panel === 'person'" accent="violet" eyebrow="People" title="Add person">
+        <form class="grid max-w-xl gap-3" @submit.prevent="savePerson(false)">
+          <div class="dpps-field">
             <Label for="person-role">Role</Label>
-            <select id="person-role" v-model="personForm.role" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Role">
+            <select id="person-role" v-model="personForm.role" class="dpps-select" aria-label="Role">
               <option v-for="[value, label] in officerRoles" :key="value" :value="value">{{ label }}</option>
             </select>
           </div>
           <div class="flex items-end gap-2">
-            <div class="grid flex-1 gap-1">
+            <div class="grid flex-1 gap-1.5">
               <Label for="person-cnic">CNIC</Label>
               <Input id="person-cnic" v-model="personForm.cnic" required aria-label="CNIC" />
             </div>
@@ -964,31 +1038,31 @@ onMounted(async () => {
           </Alert>
           <p v-if="personChecked && personFound && blocks.length === 0" class="text-sm">Found: {{ personForm.full_name }}. Details pre-filled.</p>
           <template v-if="personChecked && !personFound">
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="person-name">Name</Label>
               <Input id="person-name" v-model="personForm.full_name" required aria-label="Name" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="person-father">Father name</Label>
               <Input id="person-father" v-model="personForm.father_name" aria-label="Father name" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="person-mobile">Mobile</Label>
               <Input id="person-mobile" v-model="personForm.mobile" required aria-label="Mobile" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="person-email">Email</Label>
               <Input id="person-email" v-model="personForm.email" type="email" aria-label="Email" />
             </div>
           </template>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="person-start">Start date</Label>
             <Input id="person-start" v-model="personForm.start_date" type="date" required aria-label="Start date" />
           </div>
           <Alert v-for="warning in warnings" :key="warning">
             <AlertTitle>{{ warning }}</AlertTitle>
           </Alert>
-          <div v-if="warnings.length" class="grid gap-1">
+          <div v-if="warnings.length" class="dpps-field">
             <Label for="person-reason">Reason</Label>
             <Input id="person-reason" v-model="warningReason" aria-label="Warning reason" />
           </div>
@@ -998,55 +1072,60 @@ onMounted(async () => {
             <Button v-else type="submit" :disabled="saving || !personChecked || blocks.length > 0">Save</Button>
           </div>
         </form>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Role</th>
-                <th class="px-3 py-2 font-medium">Name</th>
-                <th class="px-3 py-2 font-medium">CNIC</th>
-                <th class="px-3 py-2 font-medium">Mobile</th>
-                <th class="px-3 py-2 font-medium">From</th>
-                <th class="px-3 py-2 font-medium">To</th>
-                <th class="px-3 py-2 font-medium"></th>
+                <th>Role</th>
+                <th>Name</th>
+                <th>CNIC</th>
+                <th>Mobile</th>
+                <th>From</th>
+                <th>To</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="officers.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="7">No people yet.</td>
+                <td class="text-muted-foreground" colspan="7">No people yet.</td>
               </tr>
-              <tr v-for="row in officers" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.role_label }}</td>
-                <td class="px-3 py-2">{{ row.full_name }}</td>
-                <td class="px-3 py-2">{{ row.cnic_display || '—' }}</td>
-                <td class="px-3 py-2">{{ row.mobile }}</td>
-                <td class="px-3 py-2">{{ displayDate(row.start_date) }}</td>
-                <td class="px-3 py-2">{{ displayDate(row.end_date) }}</td>
-                <td class="px-3 py-2">
+              <tr v-for="row in officers" :key="row.id">
+                <td>{{ row.role_label }}</td>
+                <td class="font-medium">{{ row.full_name }}</td>
+                <td>{{ row.cnic_display || '—' }}</td>
+                <td>{{ row.mobile }}</td>
+                <td class="tabular-nums">{{ displayDate(row.start_date) }}</td>
+                <td class="tabular-nums">{{ displayDate(row.end_date) }}</td>
+                <td>
                   <Button v-if="canStaff && !row.end_date" type="button" variant="outline" size="sm" @click="startEnd(row)">End</Button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
+      </template>
 
-      <section v-else-if="tab === 'staff'" class="grid gap-3">
-        <div class="flex flex-wrap items-end gap-2">
-          <Button v-if="canStaff" type="button" @click="startPerson('technical_staff')">Add Staff</Button>
-          <div class="grid gap-1">
-            <Label for="staff-filter">Show</Label>
-            <select id="staff-filter" v-model="staffFilter" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Show">
-              <option value="current">Current</option>
-              <option value="ended">Ended</option>
-              <option value="all">All</option>
-            </select>
-          </div>
+      <template v-else-if="tab === 'staff'">
+      <PageSection accent="orange" eyebrow="Staff" title="Technical staff">
+        <template #actions>
+          <Button v-if="canStaff" type="button" size="sm" @click="startPerson('technical_staff')">Add Staff</Button>
+        </template>
+        <div class="dpps-field max-w-xs">
+          <Label for="staff-filter">Show</Label>
+          <select id="staff-filter" v-model="staffFilter" class="dpps-select" aria-label="Show">
+            <option value="current">Current</option>
+            <option value="ended">Ended</option>
+            <option value="all">All</option>
+          </select>
         </div>
-        <form v-if="panel === 'staff'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="savePerson(false)">
-          <h3 class="font-medium">Add technical staff — {{ company.name }}</h3>
+      </PageSection>
+      <PageSection v-if="panel === 'staff'" accent="violet" eyebrow="Staff" :title="`Add technical staff — ${company.name}`">
+        <form class="grid max-w-xl gap-3" @submit.prevent="savePerson(false)">
           <div class="flex items-end gap-2">
-            <div class="grid flex-1 gap-1">
+            <div class="grid flex-1 gap-1.5">
               <Label for="staff-cnic">CNIC</Label>
               <Input id="staff-cnic" v-model="personForm.cnic" required aria-label="CNIC" />
             </div>
@@ -1057,46 +1136,46 @@ onMounted(async () => {
           </Alert>
           <p v-if="personChecked && personFound && blocks.length === 0" class="text-sm">Found: {{ personForm.full_name }}. Details pre-filled.</p>
           <template v-if="personChecked && !personFound">
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-name">Name</Label>
               <Input id="staff-name" v-model="personForm.full_name" required aria-label="Name" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-father">Father name</Label>
               <Input id="staff-father" v-model="personForm.father_name" aria-label="Father name" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-mobile">Mobile</Label>
               <Input id="staff-mobile" v-model="personForm.mobile" required aria-label="Mobile" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-email">Email</Label>
               <Input id="staff-email" v-model="personForm.email" type="email" aria-label="Email" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-qualification">Qualification</Label>
-              <select id="staff-qualification" v-model="personForm.qualification_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Qualification">
+              <select id="staff-qualification" v-model="personForm.qualification_id" class="dpps-select" aria-label="Qualification">
                 <option value="">Optional</option>
                 <option v-for="item in qualifications" :key="item.id" :value="item.id">{{ item.name }}</option>
               </select>
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-institution">Institution</Label>
               <Input id="staff-institution" v-model="personForm.institution" aria-label="Institution" />
             </div>
-            <div class="grid gap-1">
+            <div class="dpps-field">
               <Label for="staff-year">Year</Label>
               <Input id="staff-year" v-model="personForm.passing_year" aria-label="Year" />
             </div>
           </template>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="staff-start">Start date</Label>
             <Input id="staff-start" v-model="personForm.start_date" type="date" required aria-label="Start date" />
           </div>
           <Alert v-for="warning in warnings" :key="warning">
             <AlertTitle>{{ warning }}</AlertTitle>
           </Alert>
-          <div v-if="warnings.length" class="grid gap-1">
+          <div v-if="warnings.length" class="dpps-field">
             <Label for="staff-reason">Reason</Label>
             <Input id="staff-reason" v-model="warningReason" aria-label="Warning reason" />
           </div>
@@ -1106,32 +1185,34 @@ onMounted(async () => {
             <Button v-else type="submit" :disabled="saving || !personChecked || blocks.length > 0">Save</Button>
           </div>
         </form>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Name</th>
-                <th class="px-3 py-2 font-medium">CNIC</th>
-                <th class="px-3 py-2 font-medium">Qualification</th>
-                <th class="px-3 py-2 font-medium">Mobile</th>
-                <th class="px-3 py-2 font-medium">Since</th>
-                <th class="px-3 py-2 font-medium">Status</th>
-                <th class="px-3 py-2 font-medium"></th>
+                <th>Name</th>
+                <th>CNIC</th>
+                <th>Qualification</th>
+                <th>Mobile</th>
+                <th>Since</th>
+                <th>Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="staff.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="7">No technical staff.</td>
+                <td class="text-muted-foreground" colspan="7">No technical staff.</td>
               </tr>
-              <tr v-for="row in staff" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.full_name }}</td>
-                <td class="px-3 py-2">{{ row.cnic_display || '—' }}</td>
-                <td class="px-3 py-2">{{ row.qualification || '—' }}</td>
-                <td class="px-3 py-2">{{ row.mobile }}</td>
-                <td class="px-3 py-2">{{ displayDate(row.start_date) }}</td>
-                <td class="px-3 py-2">{{ verificationLabel(row.verification_status) }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex flex-wrap gap-2">
+              <tr v-for="row in staff" :key="row.id">
+                <td class="font-medium">{{ row.full_name }}</td>
+                <td>{{ row.cnic_display || '—' }}</td>
+                <td>{{ row.qualification || '—' }}</td>
+                <td>{{ row.mobile }}</td>
+                <td class="tabular-nums">{{ displayDate(row.start_date) }}</td>
+                <td><StatusBadge :value="row.verification_status" :label="verificationLabel(row.verification_status)" /></td>
+                <td>
+                  <div class="flex flex-wrap gap-1">
                     <Button v-if="canPersons" type="button" variant="outline" size="sm" @click="viewPerson(row)">View Person</Button>
                     <Button v-if="canStaff && !row.end_date" type="button" variant="outline" size="sm" @click="startEnd(row)">End Employment</Button>
                     <Button v-if="canVerify && !row.end_date && row.verification_status === 'pending'" type="button" variant="outline" size="sm" @click="verifyStaff(row)">Verify</Button>
@@ -1141,39 +1222,43 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
+      </template>
 
-      <section v-else-if="tab === 'premises'" class="grid gap-4">
-        <div v-if="canUpdate">
-          <Button type="button" @click="startPremise()">Add premise</Button>
-        </div>
-        <form v-if="panel === 'premise'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="savePremise">
-          <div class="grid gap-1">
+      <template v-else-if="tab === 'premises'">
+      <PageSection accent="violet" eyebrow="Sites" title="Premises">
+        <template #actions>
+          <Button v-if="canUpdate" type="button" size="sm" @click="startPremise()">Add premise</Button>
+        </template>
+      </PageSection>
+      <PageSection v-if="panel === 'premise'" accent="violet" eyebrow="Sites" title="Premise">
+        <form class="grid max-w-xl gap-3" @submit.prevent="savePremise">
+          <div class="dpps-field">
             <Label for="premise-type">Type</Label>
-            <select id="premise-type" v-model="premiseForm.type" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Type">
+            <select id="premise-type" v-model="premiseForm.type" class="dpps-select" aria-label="Type">
               <option v-for="[value, label] in premiseTypes" :key="value" :value="value">{{ label }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="premise-address">Address</Label>
-            <textarea id="premise-address" v-model="premiseForm.address" rows="2" class="border-input rounded-md border bg-transparent px-3 py-2 text-sm" required aria-label="Address" />
+            <textarea id="premise-address" v-model="premiseForm.address" rows="2" class="dpps-textarea" required aria-label="Address" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="premise-district">District</Label>
-            <select id="premise-district" v-model="premiseForm.district_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="District">
+            <select id="premise-district" v-model="premiseForm.district_id" class="dpps-select" aria-label="District">
               <option value="">Outside Balochistan</option>
               <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="premise-lat">GPS latitude</Label>
             <Input id="premise-lat" v-model="premiseForm.gps_lat" aria-label="GPS latitude" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="premise-lng">GPS longitude</Label>
             <Input id="premise-lng" v-model="premiseForm.gps_lng" aria-label="GPS longitude" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="premise-phone">Phone</Label>
             <Input id="premise-phone" v-model="premiseForm.phone" aria-label="Phone" />
           </div>
@@ -1186,53 +1271,58 @@ onMounted(async () => {
             <Button type="submit" :disabled="saving">Save</Button>
           </div>
         </form>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Type</th>
-                <th class="px-3 py-2 font-medium">Location / District</th>
-                <th class="px-3 py-2 font-medium">GPS</th>
-                <th class="px-3 py-2 font-medium">Contact</th>
+                <th>Type</th>
+                <th>Location / District</th>
+                <th>GPS</th>
+                <th>Contact</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="premises.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="4">No premises.</td>
+                <td class="text-muted-foreground" colspan="4">No premises.</td>
               </tr>
-              <tr v-for="row in premises" :key="row.id" class="cursor-pointer border-b last:border-0" @click="canUpdate && startPremise(row)">
-                <td class="px-3 py-2">{{ premiseTypes.find(([value]) => value === row.type)?.[1] || row.type }}</td>
-                <td class="px-3 py-2">{{ row.address }}<span v-if="row.district_name">, {{ row.district_name }}</span></td>
-                <td class="px-3 py-2">{{ row.gps_lat && row.gps_lng ? `${row.gps_lat}, ${row.gps_lng}` : '—' }}</td>
-                <td class="px-3 py-2">{{ row.phone || row.contact_name || '—' }}</td>
+              <tr v-for="row in premises" :key="row.id" class="dpps-row-link" @click="canUpdate && startPremise(row)">
+                <td>{{ premiseTypes.find(([value]) => value === row.type)?.[1] || row.type }}</td>
+                <td>{{ row.address }}<span v-if="row.district_name">, {{ row.district_name }}</span></td>
+                <td>{{ row.gps_lat && row.gps_lng ? `${row.gps_lat}, ${row.gps_lng}` : '—' }}</td>
+                <td>{{ row.phone || row.contact_name || '—' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="flex items-center justify-between">
-          <h3 class="font-medium">Assets</h3>
-          <Button v-if="canUpdate" type="button" variant="outline" @click="startAsset()">Add asset</Button>
-        </div>
-        <form v-if="panel === 'asset'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="saveAsset">
-          <div class="grid gap-1">
+      </PageSection>
+      <PageSection accent="amber" eyebrow="Assets" title="Assets">
+        <template #actions>
+          <Button v-if="canUpdate" type="button" variant="outline" size="sm" @click="startAsset()">Add asset</Button>
+        </template>
+      </PageSection>
+      <PageSection v-if="panel === 'asset'" accent="amber" eyebrow="Assets" title="Asset">
+        <form class="grid max-w-xl gap-3" @submit.prevent="saveAsset">
+          <div class="dpps-field">
             <Label for="asset-type">Type</Label>
-            <select id="asset-type" v-model="assetForm.asset_type" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Asset type">
+            <select id="asset-type" v-model="assetForm.asset_type" class="dpps-select" aria-label="Asset type">
               <option value="movable">Movable</option>
               <option value="immovable">Immovable</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="asset-description">Description</Label>
             <Input id="asset-description" v-model="assetForm.description" required aria-label="Description" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="asset-district">District</Label>
-            <select id="asset-district" v-model="assetForm.district_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Asset district">
+            <select id="asset-district" v-model="assetForm.district_id" class="dpps-select" aria-label="Asset district">
               <option value="">None</option>
               <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="asset-value">Estimated value</Label>
             <Input id="asset-value" v-model="assetForm.estimated_value" aria-label="Estimated value" />
           </div>
@@ -1241,54 +1331,60 @@ onMounted(async () => {
             <Button type="submit" :disabled="saving">Save</Button>
           </div>
         </form>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Type</th>
-                <th class="px-3 py-2 font-medium">Description</th>
-                <th class="px-3 py-2 font-medium">District</th>
-                <th class="px-3 py-2 font-medium">Value</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>District</th>
+                <th>Value</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="assets.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="4">No assets. Assets are optional.</td>
+                <td class="text-muted-foreground" colspan="4">No assets. Assets are optional.</td>
               </tr>
-              <tr v-for="row in assets" :key="row.id" class="cursor-pointer border-b last:border-0" @click="canUpdate && startAsset(row)">
-                <td class="px-3 py-2">{{ row.asset_type === 'immovable' ? 'Immovable' : 'Movable' }}</td>
-                <td class="px-3 py-2">{{ row.description }}</td>
-                <td class="px-3 py-2">{{ row.district_name || '—' }}</td>
-                <td class="px-3 py-2">{{ row.estimated_value || '—' }}</td>
+              <tr v-for="row in assets" :key="row.id" class="dpps-row-link" @click="canUpdate && startAsset(row)">
+                <td>{{ row.asset_type === 'immovable' ? 'Immovable' : 'Movable' }}</td>
+                <td class="font-medium">{{ row.description }}</td>
+                <td>{{ row.district_name || '—' }}</td>
+                <td>{{ row.estimated_value || '—' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
+      </template>
 
-      <section v-else-if="tab === 'products'" class="grid gap-3">
-        <div v-if="canProducts">
-          <Button type="button" @click="startProduct()">Add product</Button>
-        </div>
-        <form v-if="panel === 'product'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="saveProduct">
-          <div class="grid gap-1">
+      <template v-else-if="tab === 'products'">
+      <PageSection accent="emerald" eyebrow="Catalog" title="Products">
+        <template #actions>
+          <Button v-if="canProducts" type="button" size="sm" @click="startProduct()">Add product</Button>
+        </template>
+      </PageSection>
+      <PageSection v-if="panel === 'product'" accent="emerald" eyebrow="Catalog" title="Product">
+        <form class="grid max-w-xl gap-3" @submit.prevent="saveProduct">
+          <div class="dpps-field">
             <Label for="brand-name">Brand</Label>
             <Input id="brand-name" v-model="productForm.brand_name" required aria-label="Brand" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="generic-product">Generic product</Label>
-            <select id="generic-product" v-model="productForm.product_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="Generic product">
+            <select id="generic-product" v-model="productForm.product_id" class="dpps-select" required aria-label="Generic product">
               <option value="">Choose</option>
               <option v-for="item in productChoices" :key="item.id" :value="item.id">{{ item.label }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="dpp-no">DPP registration no</Label>
             <Input id="dpp-no" v-model="productForm.dpp_registration_no" aria-label="DPP registration no" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="product-source">Source</Label>
-            <select id="product-source" v-model="productForm.source" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Source">
+            <select id="product-source" v-model="productForm.source" class="dpps-select" aria-label="Source">
               <option value="own_import">Own import</option>
               <option value="purchase_agreement">Purchase agreement</option>
             </select>
@@ -1297,7 +1393,7 @@ onMounted(async () => {
             <input v-model="productForm.sample_provided" type="checkbox" aria-label="Sample provided">
             Sample provided
           </label>
-          <div v-if="productForm.id" class="grid gap-1">
+          <div v-if="productForm.id" class="dpps-field">
             <Label for="product-delete-reason">Remove reason</Label>
             <Input id="product-delete-reason" v-model="deleteReason" aria-label="Remove reason" />
           </div>
@@ -1307,77 +1403,82 @@ onMounted(async () => {
             <Button v-if="productForm.id" type="button" variant="outline" :disabled="saving" @click="removeProduct">Remove</Button>
           </div>
         </form>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Brand</th>
-                <th class="px-3 py-2 font-medium">Generic / Conc. / Form.</th>
-                <th class="px-3 py-2 font-medium">DPP Reg</th>
-                <th class="px-3 py-2 font-medium">Status</th>
+                <th>Brand</th>
+                <th>Generic / Conc. / Form.</th>
+                <th>DPP Reg</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="products.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="4">No products.</td>
+                <td class="text-muted-foreground" colspan="4">No products.</td>
               </tr>
-              <tr v-for="row in products" :key="row.id" class="cursor-pointer border-b last:border-0" @click="canProducts && startProduct(row)">
-                <td class="px-3 py-2">{{ row.brand_name }}</td>
-                <td class="px-3 py-2">{{ [row.generic_name, row.concentration, row.formulation].filter(Boolean).join(' ') || '—' }}</td>
-                <td class="px-3 py-2">{{ row.dpp_registration_no || '—' }}</td>
-                <td class="px-3 py-2">{{ row.status }}</td>
+              <tr v-for="row in products" :key="row.id" class="dpps-row-link" @click="canProducts && startProduct(row)">
+                <td class="font-medium">{{ row.brand_name }}</td>
+                <td>{{ [row.generic_name, row.concentration, row.formulation].filter(Boolean).join(' ') || '—' }}</td>
+                <td>{{ row.dpp_registration_no || '—' }}</td>
+                <td><StatusBadge :value="row.status" :label="row.status" /></td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
+      </template>
 
-      <section v-else-if="tab === 'documents'" class="grid gap-3">
-        <div class="flex flex-wrap items-end justify-between gap-3">
-          <div class="grid gap-1">
-            <Label for="document-category">Category</Label>
-            <select id="document-category" v-model="documentCategory" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Category" @change="loadDocuments">
-              <option v-for="[value, label] in documentCategories" :key="value" :value="value">{{ label }}</option>
-            </select>
-          </div>
-          <Button v-if="canUpload" type="button" @click="startDocument('upload')">Upload</Button>
+      <template v-else-if="tab === 'documents'">
+      <PageSection accent="rose" eyebrow="Compliance" title="Documents">
+        <template #actions>
+          <Button v-if="canUpload" type="button" size="sm" @click="startDocument('upload')">Upload</Button>
+        </template>
+        <div class="dpps-field max-w-xs">
+          <Label for="document-category">Category</Label>
+          <select id="document-category" v-model="documentCategory" class="dpps-select" aria-label="Category" @change="loadDocuments">
+            <option v-for="[value, label] in documentCategories" :key="value" :value="value">{{ label }}</option>
+          </select>
         </div>
-        <form v-if="panel === 'document'" class="grid max-w-xl gap-3 rounded-xl border p-4" @submit.prevent="saveDocument(false)">
-          <h3 class="font-medium">{{ documentForm.mode === 'replace' ? 'Replace document' : documentForm.mode === 'edit' ? 'Edit document' : 'Upload document' }}</h3>
-          <div v-if="documentForm.mode !== 'edit'" class="grid gap-1">
+      </PageSection>
+      <PageSection v-if="panel === 'document'" accent="rose" eyebrow="Documents" :title="documentForm.mode === 'replace' ? 'Replace document' : documentForm.mode === 'edit' ? 'Edit document' : 'Upload document'">
+        <form class="grid max-w-xl gap-3" @submit.prevent="saveDocument(false)">
+          <div v-if="documentForm.mode !== 'edit'" class="dpps-field">
             <Label for="document-file">File</Label>
             <input id="document-file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="text-sm" aria-label="File" @change="documentForm.file = $event.target.files?.[0] || null">
             <p class="text-xs text-muted-foreground">PDF, JPG, or PNG. The size limit is the Maximum upload size setting.</p>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="document-type">Type</Label>
-            <select id="document-type" v-model="documentForm.document_type_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="Type">
+            <select id="document-type" v-model="documentForm.document_type_id" class="dpps-select" required aria-label="Type">
               <option value="">Choose</option>
               <option v-for="item in documentTypes" :key="item.id" :value="item.id">{{ item.name }}</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="document-title">Title</Label>
             <Input id="document-title" v-model="documentForm.title" required aria-label="Title" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="document-issue">Issue date</Label>
             <Input id="document-issue" v-model="documentForm.issue_date" type="date" aria-label="Issue date" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="document-expiry">Expiry date</Label>
             <Input id="document-expiry" v-model="documentForm.expiry_date" type="date" aria-label="Expiry date" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="document-attested">Attested by</Label>
-            <select id="document-attested" v-model="documentForm.attested_by" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Attested by">
+            <select id="document-attested" v-model="documentForm.attested_by" class="dpps-select" aria-label="Attested by">
               <option v-for="[value, label] in attestedBy" :key="value" :value="value">{{ label }}</option>
             </select>
           </div>
           <Alert v-for="warning in warnings" :key="warning">
             <AlertTitle>{{ warning }}</AlertTitle>
           </Alert>
-          <div v-if="warnings.length" class="grid gap-1">
+          <div v-if="warnings.length" class="dpps-field">
             <Label for="document-reason">Reason</Label>
             <Input id="document-reason" v-model="warningReason" aria-label="Warning reason" />
           </div>
@@ -1387,152 +1488,165 @@ onMounted(async () => {
             <Button v-else type="submit" :disabled="saving">Save</Button>
           </div>
         </form>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Title</th>
-                <th class="px-3 py-2 font-medium">Type</th>
-                <th class="px-3 py-2 font-medium">Expiry</th>
-                <th class="px-3 py-2 font-medium">Version</th>
-                <th class="px-3 py-2 font-medium">Via</th>
-                <th class="px-3 py-2 font-medium">Status</th>
-                <th class="px-3 py-2 font-medium">Actions</th>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Expiry</th>
+                <th>Version</th>
+                <th>Via</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="documents.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="7">No documents.</td>
+                <td class="text-muted-foreground" colspan="7">No documents.</td>
               </tr>
-              <tr v-for="row in documents" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.title }}</td>
-                <td class="px-3 py-2">{{ row.type_name }}</td>
-                <td class="px-3 py-2">{{ displayDate(row.expiry_date) }}</td>
-                <td class="px-3 py-2">{{ row.version_no }}</td>
-                <td class="px-3 py-2">{{ viaLabel(row.uploaded_via) }}</td>
-                <td class="px-3 py-2">{{ verificationLabel(row.verification_status) }}</td>
-                <td class="px-3 py-2">
-                  <div class="flex flex-wrap gap-2">
-                    <Button v-if="canDownload" type="button" variant="outline" @click="viewDocument(row)">View</Button>
-                    <Button type="button" variant="outline" @click="showHistory(row)">History</Button>
-                    <Button v-if="canUpload" type="button" variant="outline" @click="startDocument('replace', row)">Replace</Button>
-                    <Button v-if="canUpload" type="button" variant="outline" @click="startDocument('edit', row)">Edit</Button>
-                    <Button v-if="canVerifyDocument && row.verification_status === 'pending'" type="button" variant="outline" :disabled="saving" @click="verifyDocument(row)">Verify</Button>
+              <tr v-for="row in documents" :key="row.id">
+                <td class="font-medium">{{ row.title }}</td>
+                <td>{{ row.type_name }}</td>
+                <td class="tabular-nums">{{ displayDate(row.expiry_date) }}</td>
+                <td>{{ row.version_no }}</td>
+                <td>{{ viaLabel(row.uploaded_via) }}</td>
+                <td><StatusBadge :value="row.verification_status" :label="verificationLabel(row.verification_status)" /></td>
+                <td>
+                  <div class="flex flex-wrap gap-1">
+                    <Button v-if="canDownload" type="button" variant="outline" size="sm" @click="viewDocument(row)">View</Button>
+                    <Button type="button" variant="outline" size="sm" @click="showHistory(row)">History</Button>
+                    <Button v-if="canUpload" type="button" variant="outline" size="sm" @click="startDocument('replace', row)">Replace</Button>
+                    <Button v-if="canUpload" type="button" variant="outline" size="sm" @click="startDocument('edit', row)">Edit</Button>
+                    <Button v-if="canVerifyDocument && row.verification_status === 'pending'" type="button" variant="outline" size="sm" :disabled="saving" @click="verifyDocument(row)">Verify</Button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div v-if="historyRows.length" class="overflow-x-auto rounded-xl border bg-card">
-          <h3 class="px-3 py-2 font-medium">History</h3>
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection v-if="historyRows.length" accent="slate" eyebrow="Documents" title="History" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Version</th>
-                <th class="px-3 py-2 font-medium">Title</th>
-                <th class="px-3 py-2 font-medium">Status</th>
-                <th class="px-3 py-2 font-medium">Current</th>
+                <th>Version</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Current</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in historyRows" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.version_no }}</td>
-                <td class="px-3 py-2">{{ row.title }}</td>
-                <td class="px-3 py-2">{{ verificationLabel(row.verification_status) }}</td>
-                <td class="px-3 py-2">{{ row.current ? 'Yes' : 'No' }}</td>
+              <tr v-for="row in historyRows" :key="row.id">
+                <td>{{ row.version_no }}</td>
+                <td>{{ row.title }}</td>
+                <td><StatusBadge :value="row.verification_status" :label="verificationLabel(row.verification_status)" /></td>
+                <td><StatusBadge :value="row.current" :label="row.current ? 'Yes' : 'No'" /></td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
+      </template>
 
-      <section v-else-if="tab === 'licenses'" class="grid gap-3">
-        <div v-if="canIssue" class="flex justify-end">
-          <Button type="button" variant="outline" @click="router.push({ name: 'previous-license', query: { type: 'company', id: route.params.id } })">Record previous license</Button>
-        </div>
+      <template v-else-if="tab === 'licenses'">
+      <PageSection accent="violet" eyebrow="Issuance" title="Licenses">
+        <template #actions>
+          <Button v-if="canIssue" type="button" variant="outline" size="sm" @click="router.push({ name: 'previous-license', query: { type: 'company', id: route.params.id } })">Record previous license</Button>
+        </template>
         <Alert v-if="licenseError" variant="destructive">
           <AlertTitle>{{ licenseError }}</AlertTitle>
         </Alert>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">License No</th>
-                <th class="px-3 py-2 font-medium">Kind</th>
-                <th class="px-3 py-2 font-medium">Valid from</th>
-                <th class="px-3 py-2 font-medium">Valid to</th>
-                <th class="px-3 py-2 font-medium">Status</th>
-                <th class="px-3 py-2 font-medium">Documents</th>
+                <th>License No</th>
+                <th>Kind</th>
+                <th>Valid from</th>
+                <th>Valid to</th>
+                <th>Status</th>
+                <th>Documents</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="licenseRows.length === 0">
-                <td class="px-3 py-3 text-muted-foreground" colspan="6">No licenses.</td>
+                <td class="text-muted-foreground" colspan="6">No licenses.</td>
               </tr>
-              <tr v-for="row in licenseRows" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.license_no }}</td>
-                <td class="px-3 py-2">{{ row.license_kind }}</td>
-                <td class="px-3 py-2">{{ displayDate(row.valid_from) }}</td>
-                <td class="px-3 py-2">{{ displayDate(row.valid_to) }}</td>
-                <td class="px-3 py-2">{{ row.status }}</td>
-                <td class="px-3 py-2">{{ row.documents_status }}</td>
+              <tr v-for="row in licenseRows" :key="row.id">
+                <td class="font-medium">{{ row.license_no }}</td>
+                <td><StatusBadge :value="row.license_kind" :label="row.license_kind" /></td>
+                <td class="tabular-nums">{{ displayDate(row.valid_from) }}</td>
+                <td class="tabular-nums">{{ displayDate(row.valid_to) }}</td>
+                <td><StatusBadge :value="row.status" :label="row.status" /></td>
+                <td><StatusBadge :value="row.documents_status" :label="row.documents_status" /></td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
+      </PageSection>
+      </template>
 
-      <section v-else-if="laterTabs.includes(tab)" class="text-sm text-muted-foreground">
-        This tab is not available yet.
-      </section>
+      <PageSection v-else-if="laterTabs.includes(tab)" accent="slate" eyebrow="Coming later" title="Not available yet">
+        <p class="text-sm text-muted-foreground">This tab is not available yet.</p>
+      </PageSection>
 
-      <section v-else-if="tab === 'activity'" class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
-            <tr>
-              <th class="px-3 py-2 font-medium">When</th>
-              <th class="px-3 py-2 font-medium">Action</th>
-              <th class="px-3 py-2 font-medium">Description</th>
-              <th class="px-3 py-2 font-medium">User</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="activity.length === 0">
-              <td class="px-3 py-3 text-muted-foreground" colspan="4">No activity yet.</td>
-            </tr>
-            <tr v-for="row in activity" :key="row.id" class="border-b last:border-0">
-              <td class="px-3 py-2">{{ row.created_at ? displayDate(row.created_at.slice(0, 10)) : '—' }}</td>
-              <td class="px-3 py-2">{{ row.action }}</td>
-              <td class="px-3 py-2">{{ row.description }}</td>
-              <td class="px-3 py-2">{{ row.user_name || '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+      <template v-else-if="tab === 'activity'">
+      <PageSection accent="slate" eyebrow="Audit" title="Activity" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Action</th>
+                <th>Description</th>
+                <th>User</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="activity.length === 0">
+                <td class="text-muted-foreground" colspan="4">No activity yet.</td>
+              </tr>
+              <tr v-for="row in activity" :key="row.id">
+                <td class="tabular-nums">{{ row.created_at ? displayDate(row.created_at.slice(0, 10)) : '—' }}</td>
+                <td>{{ row.action }}</td>
+                <td>{{ row.description }}</td>
+                <td>{{ row.user_name || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
+      </template>
 
-      <form v-if="showSuspend && profile.license" class="grid max-w-xl gap-3 rounded-md border p-3" @submit.prevent="saveSuspend">
-        <h3 class="font-medium">Suspend {{ profile.license.license_no }}</h3>
-        <Alert v-if="licenseError" variant="destructive">
-          <AlertTitle>{{ licenseError }}</AlertTitle>
-        </Alert>
-        <div class="grid gap-1">
-          <Label for="suspend-reason">Reason</Label>
-          <Input id="suspend-reason" v-model="suspendForm.reason" required minlength="3" aria-label="Reason" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="suspend-order">Order number</Label>
-          <Input id="suspend-order" v-model="suspendForm.order_no" required aria-label="Order number" />
-        </div>
-        <div class="grid gap-1">
-          <Label for="suspend-date">Effective date</Label>
-          <Input id="suspend-date" v-model="suspendForm.effective_date" type="date" required aria-label="Effective date" />
-        </div>
-        <div class="flex gap-2">
-          <Button type="submit" :disabled="saving">Save</Button>
-          <Button type="button" variant="outline" @click="showSuspend = false">Cancel</Button>
-        </div>
-      </form>
+      <PageSection v-if="showSuspend && profile.license" accent="orange" eyebrow="License" :title="`Suspend ${profile.license.license_no}`">
+        <form class="grid max-w-xl gap-3" @submit.prevent="saveSuspend">
+          <Alert v-if="licenseError" variant="destructive">
+            <AlertTitle>{{ licenseError }}</AlertTitle>
+          </Alert>
+          <div class="dpps-field">
+            <Label for="suspend-reason">Reason</Label>
+            <Input id="suspend-reason" v-model="suspendForm.reason" required minlength="3" aria-label="Reason" />
+          </div>
+          <div class="dpps-field">
+            <Label for="suspend-order">Order number</Label>
+            <Input id="suspend-order" v-model="suspendForm.order_no" required aria-label="Order number" />
+          </div>
+          <div class="dpps-field">
+            <Label for="suspend-date">Effective date</Label>
+            <Input id="suspend-date" v-model="suspendForm.effective_date" type="date" required aria-label="Effective date" />
+          </div>
+          <div class="flex gap-2">
+            <Button type="submit" :disabled="saving">Save</Button>
+            <Button type="button" variant="outline" @click="showSuspend = false">Cancel</Button>
+          </div>
+        </form>
+      </PageSection>
     </template>
   </div>
 </template>

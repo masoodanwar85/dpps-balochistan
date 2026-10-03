@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { api, firstError } from '@/lib/api'
@@ -60,7 +61,7 @@ onMounted(loadStages)
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
@@ -71,62 +72,64 @@ onMounted(loadStages)
       <AlertTitle>{{ notice }}</AlertTitle>
     </Alert>
 
-    <div class="flex gap-2">
-      <Button type="button" :variant="entityType === 'company' ? 'default' : 'outline'" @click="entityType = 'company'">Companies</Button>
-      <Button type="button" :variant="entityType === 'dealer' ? 'default' : 'outline'" @click="entityType = 'dealer'">Dealers</Button>
-    </div>
+    <PageSection accent="amber" eyebrow="Settings" title="Workflow stages">
+      <template #actions>
+        <Button type="button" size="sm" :variant="entityType === 'company' ? 'default' : 'outline'" @click="entityType = 'company'">Companies</Button>
+        <Button type="button" size="sm" :variant="entityType === 'dealer' ? 'default' : 'outline'" @click="entityType = 'dealer'">Dealers</Button>
+        <Button type="button" size="sm" :disabled="saving" @click="save">Save</Button>
+      </template>
+      <p class="text-sm text-muted-foreground">Higher approval stays off until you turn it on here. No extra approval screen is included.</p>
+    </PageSection>
 
-    <div class="overflow-x-auto rounded-xl border bg-card">
-      <table class="w-full text-left text-sm">
-        <thead class="border-b text-muted-foreground">
-          <tr>
-            <th class="px-3 py-2 font-medium">Seq</th>
-            <th class="px-3 py-2 font-medium">Stage</th>
-            <th class="px-3 py-2 font-medium">Applies</th>
-            <th class="px-3 py-2 font-medium">SLA days</th>
-            <th class="px-3 py-2 font-medium">Permission</th>
-            <th class="px-3 py-2 font-medium">Active</th>
-            <th class="px-3 py-2 font-medium">Skippable</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="stage in visible" :key="stage.id" class="border-b last:border-0">
-            <td class="px-3 py-2">{{ stage.sequence }}</td>
-            <td class="px-3 py-2">{{ stage.name }}</td>
-            <td class="px-3 py-2">
-              <select v-model="stage.applies_to" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" :aria-label="`${stage.name} applies`">
-                <option value="new">New</option>
-                <option value="renewal">Renewal</option>
-                <option value="both">Both</option>
-              </select>
-            </td>
-            <td class="px-3 py-2">
-              <input
-                v-model="stage.sla_days"
-                type="number"
-                min="1"
-                class="border-input h-9 w-20 rounded-md border bg-transparent px-2 text-sm"
-                :aria-label="`${stage.name} SLA days`"
-              >
-            </td>
-            <td class="px-3 py-2">
-              <select v-model="stage.required_permission" class="border-input h-9 max-w-56 rounded-md border bg-transparent px-2 text-sm" :aria-label="`${stage.name} permission`">
-                <option v-for="permission in permissions" :key="permission" :value="permission">{{ permission }}</option>
-              </select>
-            </td>
-            <td class="px-3 py-2">
-              <input v-model="stage.is_active" type="checkbox" :aria-label="`${stage.name} active`">
-            </td>
-            <td class="px-3 py-2">
-              <input v-model="stage.is_skippable" type="checkbox" :aria-label="`${stage.name} skippable`">
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="text-sm text-muted-foreground">Higher approval stays off until you turn it on here. No extra approval screen is included.</p>
-    <div>
-      <Button type="button" :disabled="saving" @click="save">Save</Button>
-    </div>
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Seq</th>
+              <th>Stage</th>
+              <th>Applies</th>
+              <th>SLA days</th>
+              <th>Permission</th>
+              <th>Active</th>
+              <th>Skippable</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="stage in visible" :key="stage.id">
+              <td class="tabular-nums">{{ stage.sequence }}</td>
+              <td class="font-medium">{{ stage.name }}</td>
+              <td>
+                <select v-model="stage.applies_to" class="dpps-select" :aria-label="`${stage.name} applies`">
+                  <option value="new">New</option>
+                  <option value="renewal">Renewal</option>
+                  <option value="both">Both</option>
+                </select>
+              </td>
+              <td>
+                <input
+                  v-model="stage.sla_days"
+                  type="number"
+                  min="1"
+                  class="dpps-select w-20"
+                  :aria-label="`${stage.name} SLA days`"
+                >
+              </td>
+              <td>
+                <select v-model="stage.required_permission" class="dpps-select max-w-56" :aria-label="`${stage.name} permission`">
+                  <option v-for="permission in permissions" :key="permission" :value="permission">{{ permission }}</option>
+                </select>
+              </td>
+              <td>
+                <input v-model="stage.is_active" type="checkbox" :aria-label="`${stage.name} active`">
+              </td>
+              <td>
+                <input v-model="stage.is_skippable" type="checkbox" :aria-label="`${stage.name} skippable`">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
   </div>
 </template>

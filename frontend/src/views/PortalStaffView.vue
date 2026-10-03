@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -124,81 +125,90 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex items-center justify-between gap-3">
-      <h2 class="text-lg font-semibold">Staff</h2>
-      <Button type="button" @click="open = !open">Add staff</Button>
-    </div>
-    <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
-    <p v-if="notice" class="text-sm">{{ notice }}</p>
-    <form v-if="open" class="grid max-w-lg gap-3 rounded-md border p-4" @submit.prevent="addStaff">
-      <div class="grid gap-1">
-        <Label for="cnic">CNIC</Label>
-        <Input id="cnic" v-model="form.cnic" required />
+  <div class="grid gap-6">
+    <PageSection accent="sky" eyebrow="Company portal" title="Staff">
+      <template #actions>
+        <Button type="button" size="sm" @click="open = !open">Add staff</Button>
+      </template>
+      <Alert v-if="loadError" variant="destructive"><AlertTitle>{{ loadError }}</AlertTitle></Alert>
+      <p v-if="notice" class="text-sm">{{ notice }}</p>
+    </PageSection>
+    <PageSection v-if="open" accent="violet" eyebrow="Staff" title="Add staff">
+      <form class="grid max-w-lg gap-3" @submit.prevent="addStaff">
+        <div class="dpps-field">
+          <Label for="cnic">CNIC</Label>
+          <Input id="cnic" v-model="form.cnic" required />
+        </div>
+        <Button type="button" variant="outline" @click="checkPerson">Check CNIC</Button>
+        <p v-if="preview?.found">{{ preview.person.full_name }}</p>
+        <ul v-if="preview?.blocks?.length" class="text-sm">
+          <li v-for="block in preview.blocks" :key="block.message">{{ block.message }}</li>
+        </ul>
+        <div class="dpps-field">
+          <Label for="full-name">Name</Label>
+          <Input id="full-name" v-model="form.full_name" />
+        </div>
+        <div class="dpps-field">
+          <Label for="mobile">Mobile</Label>
+          <Input id="mobile" v-model="form.mobile" />
+        </div>
+        <div class="dpps-field">
+          <Label for="start-date">Since</Label>
+          <Input id="start-date" v-model="form.start_date" type="date" required />
+        </div>
+        <div class="dpps-field">
+          <Label for="qualification">Qualification</Label>
+          <select id="qualification" v-model="form.qualification_id" class="dpps-select">
+            <option value="">None</option>
+            <option v-for="row in qualifications" :key="row.id" :value="row.id">{{ row.name }}</option>
+          </select>
+        </div>
+        <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
+        <Button type="submit">Submit</Button>
+      </form>
+    </PageSection>
+
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>CNIC</th>
+              <th>Qualification</th>
+              <th>Since</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td>{{ row.full_name }}</td>
+              <td>{{ row.cnic_display || row.cnic }}</td>
+              <td>{{ row.qualification || '—' }}</td>
+              <td>{{ displayDate(row.start_date) }}</td>
+              <td>{{ row.end_date ? 'Ended' : statusLabel(row) }}</td>
+              <td>
+                <Button v-if="!row.end_date" type="button" variant="outline" size="sm" @click="endId = row.id">End employment</Button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <Button type="button" variant="outline" @click="checkPerson">Check CNIC</Button>
-      <p v-if="preview?.found">{{ preview.person.full_name }}</p>
-      <ul v-if="preview?.blocks?.length" class="text-sm">
-        <li v-for="block in preview.blocks" :key="block.message">{{ block.message }}</li>
-      </ul>
-      <div class="grid gap-1">
-        <Label for="full-name">Name</Label>
-        <Input id="full-name" v-model="form.full_name" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="mobile">Mobile</Label>
-        <Input id="mobile" v-model="form.mobile" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="start-date">Since</Label>
-        <Input id="start-date" v-model="form.start_date" type="date" required />
-      </div>
-      <div class="grid gap-1">
-        <Label for="qualification">Qualification</Label>
-        <select id="qualification" v-model="form.qualification_id" class="border-input h-9 rounded-md border px-3 text-sm">
-          <option value="">None</option>
-          <option v-for="row in qualifications" :key="row.id" :value="row.id">{{ row.name }}</option>
-        </select>
-      </div>
-      <Alert v-if="formError" variant="destructive"><AlertTitle>{{ formError }}</AlertTitle></Alert>
-      <Button type="submit">Submit</Button>
-    </form>
-    <div class="overflow-x-auto rounded-md border">
-      <table class="w-full text-sm">
-        <thead class="bg-muted/50 text-left">
-          <tr>
-            <th class="px-3 py-2">Name</th>
-            <th class="px-3 py-2">CNIC</th>
-            <th class="px-3 py-2">Qualification</th>
-            <th class="px-3 py-2">Since</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-t">
-            <td class="px-3 py-2">{{ row.full_name }}</td>
-            <td class="px-3 py-2">{{ row.cnic_display || row.cnic }}</td>
-            <td class="px-3 py-2">{{ row.qualification || '—' }}</td>
-            <td class="px-3 py-2">{{ displayDate(row.start_date) }}</td>
-            <td class="px-3 py-2">{{ row.end_date ? 'Ended' : statusLabel(row) }}</td>
-            <td class="px-3 py-2">
-              <Button v-if="!row.end_date" type="button" variant="outline" @click="endId = row.id">End employment</Button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <form v-if="endId" class="grid max-w-lg gap-3 rounded-md border p-4" @submit.prevent="endStaff">
-      <div class="grid gap-1">
-        <Label for="end-date">End date</Label>
-        <Input id="end-date" v-model="form.end_date" type="date" required />
-      </div>
-      <div class="grid gap-1">
-        <Label for="end-reason">Reason</Label>
-        <Input id="end-reason" v-model="form.end_reason" required />
-      </div>
-      <Button type="submit">Save</Button>
-    </form>
+    </PageSection>
+
+    <PageSection v-if="endId" accent="rose" eyebrow="Staff" title="End employment">
+      <form class="grid max-w-lg gap-3" @submit.prevent="endStaff">
+        <div class="dpps-field">
+          <Label for="end-date">End date</Label>
+          <Input id="end-date" v-model="form.end_date" type="date" required />
+        </div>
+        <div class="dpps-field">
+          <Label for="end-reason">Reason</Label>
+          <Input id="end-reason" v-model="form.end_reason" required />
+        </div>
+        <Button type="submit">Save</Button>
+      </form>
+    </PageSection>
   </div>
 </template>

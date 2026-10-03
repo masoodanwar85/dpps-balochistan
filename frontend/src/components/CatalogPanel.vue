@@ -1,5 +1,7 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -13,6 +15,8 @@ const props = defineProps({
   fields: { type: Array, required: true },
   blank: { type: Object, required: true },
   extraFilters: { type: Array, default: () => [] },
+  eyebrow: { type: String, default: 'Settings' },
+  title: { type: String, default: 'Browse' },
 })
 
 const rows = ref([])
@@ -172,7 +176,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
@@ -180,93 +184,101 @@ onMounted(() => {
       <AlertTitle>{{ notice }}</AlertTitle>
     </Alert>
 
-    <form class="grid gap-3 md:grid-cols-4" @submit.prevent="applyFilters">
-      <div class="grid gap-1">
-        <Label for="catalog-search">Search</Label>
-        <Input id="catalog-search" v-model="filters.search" :placeholder="searchPlaceholder" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="catalog-active">Active</Label>
-        <select id="catalog-active" v-model="filters.is_active" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
-          <option value="">All</option>
-          <option value="1">Active</option>
-          <option value="0">Inactive</option>
-        </select>
-      </div>
-      <div v-for="filter in extraFilters" :key="filter.key" class="grid gap-1">
-        <Label :for="`filter-${filter.key}`">{{ filter.label }}</Label>
-        <select :id="`filter-${filter.key}`" v-model="filters.extra[filter.key]" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
-          <option value="">All</option>
-          <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-      </div>
-      <div class="flex items-end gap-2">
-        <Button type="submit" variant="outline">Apply</Button>
-        <Button type="button" @click="startCreate">New</Button>
-      </div>
-    </form>
-
-    <form v-if="showForm" class="grid max-w-3xl gap-4 rounded-xl border bg-card p-4" @submit.prevent="save">
-      <h3 class="font-medium">{{ editingId ? 'Edit' : 'New' }}</h3>
-      <Alert v-if="formError" variant="destructive">
-        <AlertTitle>{{ formError }}</AlertTitle>
-      </Alert>
-      <div class="grid gap-3 md:grid-cols-2">
-        <div v-for="field in fields" :key="field.key" class="grid gap-1">
-          <template v-if="field.type === 'checkbox'">
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="form[field.key]" type="checkbox">
-              {{ field.label }}
-            </label>
-          </template>
-          <template v-else>
-            <Label :for="`field-${field.key}`">{{ field.label }}</Label>
-            <select
-              v-if="field.type === 'select'"
-              :id="`field-${field.key}`"
-              v-model="form[field.key]"
-              class="border-input h-9 rounded-md border bg-transparent px-3 text-sm"
-              :required="field.required"
-            >
-              <option value="">Select</option>
-              <option v-for="option in field.options" :key="option.value" :value="option.value">{{ option.label }}</option>
-            </select>
-            <Input
-              v-else
-              :id="`field-${field.key}`"
-              v-model="form[field.key]"
-              :required="field.required"
-            />
-          </template>
+    <PageSection accent="slate" :eyebrow="eyebrow" :title="title">
+      <template #actions>
+        <Button type="button" size="sm" @click="startCreate">New</Button>
+      </template>
+      <form class="flex flex-wrap items-end gap-3" @submit.prevent="applyFilters">
+        <div class="dpps-field">
+          <Label for="catalog-search">Search</Label>
+          <Input id="catalog-search" v-model="filters.search" :placeholder="searchPlaceholder" />
         </div>
-      </div>
-      <div class="flex gap-2">
-        <Button type="submit" :disabled="saving">Save</Button>
-        <Button type="button" variant="outline" @click="showForm = false">Cancel</Button>
-      </div>
-    </form>
+        <div class="dpps-field">
+          <Label for="catalog-active">Active</Label>
+          <select id="catalog-active" v-model="filters.is_active" class="dpps-select">
+            <option value="">All</option>
+            <option value="1">Active</option>
+            <option value="0">Inactive</option>
+          </select>
+        </div>
+        <div v-for="filter in extraFilters" :key="filter.key" class="dpps-field">
+          <Label :for="`filter-${filter.key}`">{{ filter.label }}</Label>
+          <select :id="`filter-${filter.key}`" v-model="filters.extra[filter.key]" class="dpps-select">
+            <option value="">All</option>
+            <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <Button type="submit" variant="outline">Apply</Button>
+      </form>
+    </PageSection>
 
-    <div class="overflow-x-auto rounded-xl border bg-card">
-      <table class="w-full text-left text-sm">
-        <thead class="border-b text-muted-foreground">
-          <tr>
-            <th v-for="column in columns" :key="column.key" class="px-3 py-2 font-medium">{{ column.label }}</th>
-            <th class="px-3 py-2 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.id" class="border-b last:border-0">
-            <td v-for="column in columns" :key="column.key" class="px-3 py-2">{{ cell(row, column) }}</td>
-            <td class="px-3 py-2">
-              <button type="button" class="underline" @click="startEdit(row)">Edit</button>
-            </td>
-          </tr>
-          <tr v-if="rows.length === 0">
-            <td :colspan="columns.length + 1" class="px-3 py-6 text-muted-foreground">No rows match these filters.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <PageSection v-if="showForm" accent="violet" eyebrow="Settings" :title="editingId ? 'Edit' : 'New'">
+      <form class="grid max-w-3xl gap-4" @submit.prevent="save">
+        <Alert v-if="formError" variant="destructive">
+          <AlertTitle>{{ formError }}</AlertTitle>
+        </Alert>
+        <div class="grid gap-4 md:grid-cols-2">
+          <div v-for="field in fields" :key="field.key" class="dpps-field">
+            <template v-if="field.type === 'checkbox'">
+              <label class="flex items-center gap-2 text-sm">
+                <input v-model="form[field.key]" type="checkbox">
+                {{ field.label }}
+              </label>
+            </template>
+            <template v-else>
+              <Label :for="`field-${field.key}`">{{ field.label }}</Label>
+              <select
+                v-if="field.type === 'select'"
+                :id="`field-${field.key}`"
+                v-model="form[field.key]"
+                class="dpps-select"
+                :required="field.required"
+              >
+                <option value="">Select</option>
+                <option v-for="option in field.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+              </select>
+              <Input
+                v-else
+                :id="`field-${field.key}`"
+                v-model="form[field.key]"
+                :required="field.required"
+              />
+            </template>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <Button type="submit" :disabled="saving">Save</Button>
+          <Button type="button" variant="outline" @click="showForm = false">Cancel</Button>
+        </div>
+      </form>
+    </PageSection>
+
+    <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+      <div class="dpps-table-wrap rounded-none border-0">
+        <table class="dpps-table">
+          <thead>
+            <tr>
+              <th v-for="column in columns" :key="column.key">{{ column.label }}</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td v-for="column in columns" :key="column.key">
+                <StatusBadge v-if="column.boolean" :value="row[column.key]" :label="cell(row, column)" />
+                <template v-else>{{ cell(row, column) }}</template>
+              </td>
+              <td>
+                <Button type="button" variant="outline" size="sm" @click="startEdit(row)">Edit</Button>
+              </td>
+            </tr>
+            <tr v-if="rows.length === 0">
+              <td :colspan="columns.length + 1" class="text-muted-foreground">No rows match these filters.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </PageSection>
     <div class="flex items-center gap-3 text-sm">
       <Button type="button" variant="outline" size="sm" :disabled="meta.current_page <= 1" @click="changePage(meta.current_page - 1)">Previous</Button>
       <span>Page {{ meta.current_page }} of {{ meta.last_page }}</span>

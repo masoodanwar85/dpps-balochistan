@@ -82,3 +82,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .dpps-select {
+    @apply border-input h-9 rounded-md border bg-background px-2 text-sm shadow-xs;
+  }
+
+  .dpps-textarea {
+    @apply border-input rounded-md border bg-background px-3 py-2 text-sm shadow-xs;
+  }
+
+  .dpps-table-wrap {
+    @apply overflow-x-auto rounded-lg border;
+  }
+
+  .dpps-table {
+    @apply w-full text-sm;
+  }
+
+  .dpps-table thead {
+    @apply bg-muted/70 text-left text-xs tracking-wide text-muted-foreground uppercase;
+  }
+
+  .dpps-table th {
+    @apply px-3 py-2.5 font-medium;
+  }
+
+  .dpps-table tbody tr {
+    @apply border-t transition hover:bg-muted/40;
+  }
+
+  .dpps-table td {
+    @apply px-3 py-2.5;
+  }
+
+  .dpps-field {
+    @apply grid gap-1.5;
+  }
+
+  .dpps-row-link {
+    @apply cursor-pointer;
+  }
+}

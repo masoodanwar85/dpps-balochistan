@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import CatalogPanel from '@/components/CatalogPanel.vue'
+import PageSection from '@/components/PageSection.vue'
 import { api } from '@/lib/api'
 
 const documentCategories = [
@@ -177,18 +178,21 @@ onMounted(loadDistricts)
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex flex-wrap gap-2">
-      <Button
-        v-for="tab in tabs"
-        :key="tab.id"
-        type="button"
-        :variant="tab.id === active ? 'default' : 'outline'"
-        @click="active = tab.id"
-      >
-        {{ tab.label }}
-      </Button>
-    </div>
+  <div class="grid gap-6">
+    <PageSection accent="slate" eyebrow="Settings" title="Lookups">
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          class="rounded-md px-3 py-1.5 text-sm ring-1 transition"
+          :class="tab.id === active ? 'bg-slate-100 font-medium text-slate-900 ring-slate-300' : 'bg-background text-muted-foreground ring-border hover:bg-muted'"
+          @click="active = tab.id"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+    </PageSection>
     <CatalogPanel
       v-if="activeTab"
       :key="activeTab.id"
@@ -198,6 +202,8 @@ onMounted(loadDistricts)
       :fields="activeTab.panel.fields"
       :blank="activeTab.panel.blank"
       :extra-filters="activeTab.panel.extraFilters || []"
+      eyebrow="Lookups"
+      :title="activeTab.label"
     />
   </div>
 </template>

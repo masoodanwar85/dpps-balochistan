@@ -1,5 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -281,7 +283,7 @@ onMounted(loadFamilies)
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
@@ -292,92 +294,94 @@ onMounted(loadFamilies)
       <AlertTitle>{{ formError }}</AlertTitle>
     </Alert>
 
-    <section v-if="!template" class="overflow-x-auto rounded-xl border bg-card">
-      <table class="w-full text-left text-sm">
-        <thead class="border-b text-muted-foreground">
-          <tr>
-            <th class="px-3 py-2 font-medium">Template</th>
-            <th class="px-3 py-2 font-medium">Published</th>
-            <th class="px-3 py-2 font-medium">Draft</th>
-            <th class="px-3 py-2 font-medium">Items</th>
-            <th class="px-3 py-2 font-medium" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="family in families" :key="`${family.entity_type}-${family.application_type}`" class="border-b last:border-0">
-            <td class="px-3 py-2">{{ family.name }}</td>
-            <td class="px-3 py-2">{{ family.published ? `v${family.published.version_no}` : '—' }}</td>
-            <td class="px-3 py-2">{{ family.draft ? `v${family.draft.version_no}` : '—' }}</td>
-            <td class="px-3 py-2">{{ family.published?.item_count ?? family.draft?.item_count ?? '—' }}</td>
-            <td class="px-3 py-2">
-              <button type="button" class="underline" @click="loadTemplate(family.draft?.id || family.published?.id)">Open</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section v-else class="grid gap-4">
-      <div class="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" @click="template = null">Back</Button>
-        <h2 class="text-lg font-semibold">{{ template.name }} v{{ template.version_no }} ({{ template.status }})</h2>
-        <span v-if="template.status === 'draft' && template.published_version_no" class="text-sm text-muted-foreground">
-          v{{ template.published_version_no }} published
-        </span>
-      </div>
-      <p class="text-sm text-muted-foreground">Publishing affects new applications only. An application keeps the checklist version it was given.</p>
-
-      <div v-if="template.editable" class="flex flex-wrap items-end gap-2">
-        <Button type="button" @click="startCreate">Add Item</Button>
-        <div class="grid gap-1">
-          <Label for="copy-source">Copy from another template</Label>
-          <select id="copy-source" v-model="copySourceId" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
-            <option value="">Select</option>
-            <option v-for="source in copySources" :key="source.id" :value="source.id">{{ source.label }}</option>
-          </select>
+    <template v-if="!template">
+      <PageSection accent="amber" eyebrow="Settings" title="Checklist templates" />
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>Template</th>
+                <th>Published</th>
+                <th>Draft</th>
+                <th>Items</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="family in families" :key="`${family.entity_type}-${family.application_type}`">
+                <td class="font-medium">{{ family.name }}</td>
+                <td>{{ family.published ? `v${family.published.version_no}` : '—' }}</td>
+                <td>{{ family.draft ? `v${family.draft.version_no}` : '—' }}</td>
+                <td>{{ family.published?.item_count ?? family.draft?.item_count ?? '—' }}</td>
+                <td>
+                  <Button type="button" variant="outline" size="sm" @click="loadTemplate(family.draft?.id || family.published?.id)">Open</Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <Button type="button" variant="outline" :disabled="!copySourceId || saving" @click="copyFrom">Copy</Button>
-        <Button type="button" variant="outline" @click="showPreview = !showPreview">Preview</Button>
-        <Button type="button" :disabled="saving" @click="publish">Publish v{{ template.version_no }}</Button>
-      </div>
-      <div v-else>
-        <Button type="button" :disabled="saving" @click="startVersion(template.id)">New version</Button>
-      </div>
+      </PageSection>
+    </template>
 
-      <ol v-if="showPreview" class="list-decimal space-y-1 pl-5 text-sm">
-        <li v-for="item in template.items" :key="item.id">{{ item.annex_code }}. {{ item.title }}</li>
-      </ol>
+    <template v-else>
+      <PageSection accent="amber" eyebrow="Checklist" :title="`${template.name} v${template.version_no}`">
+        <template #actions>
+          <Button type="button" variant="outline" size="sm" @click="template = null">Back</Button>
+          <StatusBadge :value="template.status" :label="template.status" />
+        </template>
+        <p v-if="template.status === 'draft' && template.published_version_no" class="mb-2 text-sm text-muted-foreground">
+          v{{ template.published_version_no }} published
+        </p>
+        <p class="text-sm text-muted-foreground">Publishing affects new applications only. An application keeps the checklist version it was given.</p>
+        <div v-if="template.editable" class="mt-4 flex flex-wrap items-end gap-2">
+          <Button type="button" size="sm" @click="startCreate">Add Item</Button>
+          <div class="dpps-field">
+            <Label for="copy-source">Copy from another template</Label>
+            <select id="copy-source" v-model="copySourceId" class="dpps-select">
+              <option value="">Select</option>
+              <option v-for="source in copySources" :key="source.id" :value="source.id">{{ source.label }}</option>
+            </select>
+          </div>
+          <Button type="button" variant="outline" size="sm" :disabled="!copySourceId || saving" @click="copyFrom">Copy</Button>
+          <Button type="button" variant="outline" size="sm" @click="showPreview = !showPreview">Preview</Button>
+          <Button type="button" size="sm" :disabled="saving" @click="publish">Publish v{{ template.version_no }}</Button>
+        </div>
+        <div v-else class="mt-4">
+          <Button type="button" size="sm" :disabled="saving" @click="startVersion(template.id)">New version</Button>
+        </div>
+      </PageSection>
 
-      <form v-if="showForm" class="grid max-w-3xl gap-3 rounded-xl border bg-card p-4" @submit.prevent="saveItem">
-        <h3 class="font-medium">{{ editingId ? 'Edit item' : 'New item' }}</h3>
+      <PageSection v-if="showForm" accent="violet" eyebrow="Checklist" :title="editingId ? 'Edit item' : 'New item'">
+      <form class="grid max-w-3xl gap-3" @submit.prevent="saveItem">
         <div class="grid gap-3 md:grid-cols-2">
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="annex">Annex</Label>
             <Input id="annex" v-model="form.annex_code" required maxlength="5" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="form-ref">Form reference</Label>
             <Input id="form-ref" v-model="form.form_reference" maxlength="30" />
           </div>
-          <div class="grid gap-1 md:col-span-2">
+          <div class="dpps-field md:col-span-2">
             <Label for="title">Title</Label>
             <Input id="title" v-model="form.title" required />
           </div>
-          <div class="grid gap-1 md:col-span-2">
+          <div class="dpps-field md:col-span-2">
             <Label for="description">Description</Label>
-            <textarea id="description" v-model="form.description" class="border-input min-h-20 rounded-md border bg-transparent px-3 py-2 text-sm" />
+            <textarea id="description" v-model="form.description" class="dpps-textarea min-h-20" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="file-types">Allowed file types</Label>
             <Input id="file-types" v-model="form.allowed_file_types" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="max-files">Max files</Label>
             <Input id="max-files" v-model="form.max_files" type="number" min="1" max="99" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="attestation">Attestation</Label>
-            <select id="attestation" v-model="form.attestation_required" class="border-input h-9 rounded-md border bg-transparent px-3 text-sm">
+            <select id="attestation" v-model="form.attestation_required" class="dpps-select">
               <option v-for="option in attestations" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
           </div>
@@ -394,52 +398,60 @@ onMounted(loadFamilies)
           <Button type="button" variant="outline" @click="showForm = false">Cancel</Button>
         </div>
       </form>
+      </PageSection>
 
-      <div class="overflow-x-auto rounded-xl border bg-card">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b text-muted-foreground">
-            <tr>
-              <th class="px-3 py-2 font-medium" />
-              <th class="px-3 py-2 font-medium">Annex</th>
-              <th class="px-3 py-2 font-medium">Title</th>
-              <th class="px-3 py-2 font-medium">Req</th>
-              <th class="px-3 py-2 font-medium">Upload</th>
-              <th class="px-3 py-2 font-medium">Attest</th>
-              <th class="px-3 py-2 font-medium">Cover</th>
-              <th class="px-3 py-2 font-medium">Portal</th>
-              <th class="px-3 py-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(item, index) in template.items"
-              :key="item.id"
-              class="border-b last:border-0"
-              :draggable="template.editable"
-              @dragstart="dragIndex = index"
-              @dragover.prevent
-              @drop="onDrop(index)"
-            >
-              <td class="px-3 py-2">{{ template.editable ? '≡' : '' }}</td>
-              <td class="px-3 py-2">{{ item.annex_code }}</td>
-              <td class="px-3 py-2">{{ item.title }}</td>
-              <td class="px-3 py-2">{{ mark(item.is_required) }}</td>
-              <td class="px-3 py-2">{{ mark(item.requires_upload) }}</td>
-              <td class="px-3 py-2">{{ attestLabel(item.attestation_required) }}</td>
-              <td class="px-3 py-2">{{ mark(item.must_cover_license_period) }}</td>
-              <td class="px-3 py-2">{{ mark(item.portal_uploadable) }}</td>
-              <td class="px-3 py-2">
-                <template v-if="template.editable">
-                  <button type="button" class="underline" @click="startEdit(item)">Edit</button>
-                  <button type="button" class="ml-3 underline" @click="removeItem(item)">Remove</button>
-                </template>
-                <span v-else>—</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p v-if="template.editable" class="text-sm text-muted-foreground">Drag ≡ to reorder.</p>
-    </section>
+      <PageSection v-if="showPreview" accent="slate" eyebrow="Preview" title="Applicant order">
+        <ol class="list-decimal space-y-1 pl-5 text-sm">
+          <li v-for="item in template.items" :key="item.id">{{ item.annex_code }}. {{ item.title }}</li>
+        </ol>
+      </PageSection>
+
+      <PageSection accent="slate" eyebrow="Items" title="Checklist items" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Annex</th>
+                <th>Title</th>
+                <th>Req</th>
+                <th>Upload</th>
+                <th>Attest</th>
+                <th>Cover</th>
+                <th>Portal</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(item, index) in template.items"
+                :key="item.id"
+                :draggable="template.editable"
+                @dragstart="dragIndex = index"
+                @dragover.prevent
+                @drop="onDrop(index)"
+              >
+                <td>{{ template.editable ? '≡' : '' }}</td>
+                <td>{{ item.annex_code }}</td>
+                <td>{{ item.title }}</td>
+                <td>{{ mark(item.is_required) }}</td>
+                <td>{{ mark(item.requires_upload) }}</td>
+                <td>{{ attestLabel(item.attestation_required) }}</td>
+                <td>{{ mark(item.must_cover_license_period) }}</td>
+                <td>{{ mark(item.portal_uploadable) }}</td>
+                <td>
+                  <template v-if="template.editable">
+                    <Button type="button" variant="outline" size="sm" @click="startEdit(item)">Edit</Button>
+                    <Button type="button" variant="outline" size="sm" class="ml-2" @click="removeItem(item)">Remove</Button>
+                  </template>
+                  <span v-else>—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-if="template.editable" class="px-5 py-3 text-sm text-muted-foreground">Drag ≡ to reorder.</p>
+      </PageSection>
+    </template>
   </div>
 </template>

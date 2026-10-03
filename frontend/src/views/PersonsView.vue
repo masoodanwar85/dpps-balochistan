@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -184,29 +185,29 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <form class="flex flex-wrap items-end gap-2" @submit.prevent="search">
-      <div class="grid gap-1">
-        <Label for="cnic-search">CNIC</Label>
-        <Input id="cnic-search" v-model="cnic" class="w-64" placeholder="54400-1111111-1" aria-label="CNIC" />
-      </div>
-      <Button type="submit" :disabled="searching">Check</Button>
-    </form>
-
-    <Alert v-if="searchError" variant="destructive">
-      <AlertTitle>{{ searchError }}</AlertTitle>
-    </Alert>
-    <Alert v-if="notFound">
-      <AlertTitle>No person with this CNIC.</AlertTitle>
-    </Alert>
+  <div class="grid gap-6">
+    <PageSection accent="sky" eyebrow="People" title="Persons">
+      <form class="flex flex-wrap items-end gap-3" @submit.prevent="search">
+        <div class="dpps-field">
+          <Label for="cnic-search">CNIC</Label>
+          <Input id="cnic-search" v-model="cnic" class="w-64" placeholder="54400-1111111-1" aria-label="CNIC" />
+        </div>
+        <Button type="submit" :disabled="searching">Check</Button>
+      </form>
+      <Alert v-if="searchError" variant="destructive" class="mt-4">
+        <AlertTitle>{{ searchError }}</AlertTitle>
+      </Alert>
+      <Alert v-if="notFound" class="mt-4">
+        <AlertTitle>No person with this CNIC.</AlertTitle>
+      </Alert>
+    </PageSection>
 
     <template v-if="profile">
-      <div class="rounded-xl border bg-card p-4">
-        <h2 class="text-lg font-semibold">{{ profile.full_name }}</h2>
+      <PageSection accent="sky" eyebrow="Profile" :title="profile.full_name">
         <p class="text-sm text-muted-foreground">
           CNIC {{ profile.cnic_display || 'Pending' }} · Mobile {{ profile.mobile }}
         </p>
-      </div>
+      </PageSection>
 
       <Alert v-if="profile.cnic_pending">
         <AlertTitle>CNIC pending. This person does not count as verified staff.</AlertTitle>
@@ -226,73 +227,73 @@ onMounted(() => {
         <AlertTitle>{{ notice }}</AlertTitle>
       </Alert>
 
-      <div>
-        <h3 class="mb-2 text-sm font-medium">Roles across the system</h3>
-        <div class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+      <PageSection accent="slate" eyebrow="History" title="Roles across the system" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">Role</th>
-                <th class="px-3 py-2 font-medium">Organisation</th>
-                <th class="px-3 py-2 font-medium">From → to</th>
+                <th>Role</th>
+                <th>Organisation</th>
+                <th>From → to</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="profile.roles.length === 0">
-                <td class="px-3 py-2 text-muted-foreground" colspan="3">No roles recorded.</td>
+                <td class="text-muted-foreground" colspan="3">No roles recorded.</td>
               </tr>
-              <tr v-for="(role, index) in profile.roles" :key="`${role.kind}-${role.organisation}-${index}`" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ role.label }}</td>
-                <td class="px-3 py-2">{{ role.organisation }}</td>
-                <td class="px-3 py-2">{{ roleLine(role) }}</td>
+              <tr v-for="(role, index) in profile.roles" :key="`${role.kind}-${role.organisation}-${index}`">
+                <td>{{ role.label }}</td>
+                <td>{{ role.organisation }}</td>
+                <td>{{ roleLine(role) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
+      </PageSection>
 
-      <form v-if="canUpdate && form" class="grid gap-4" @submit.prevent="save(false)">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <div class="grid gap-1">
+      <PageSection v-if="canUpdate && form" accent="sky" eyebrow="Details" title="Edit person">
+      <form class="grid gap-4" @submit.prevent="save(false)">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="dpps-field">
             <Label for="full-name">Full name</Label>
             <Input id="full-name" v-model="form.full_name" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="person-cnic">CNIC</Label>
             <Input id="person-cnic" v-model="form.cnic" aria-label="Profile CNIC" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="father-name">Father name</Label>
             <Input id="father-name" v-model="form.father_name" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="gender">Gender</Label>
-            <select id="gender" v-model="form.gender" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Gender">
+            <select id="gender" v-model="form.gender" class="dpps-select" aria-label="Gender">
               <option value="">Not set</option>
               <option value="male">Male</option>
               <option value="female">Female</option>
               <option value="other">Other</option>
             </select>
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="date-of-birth">Date of birth</Label>
             <Input id="date-of-birth" v-model="form.date_of_birth" type="date" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="mobile">Mobile</Label>
             <Input id="mobile" v-model="form.mobile" required />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="alt-mobile">Alt mobile</Label>
             <Input id="alt-mobile" v-model="form.alt_mobile" />
           </div>
-          <div class="grid gap-1">
+          <div class="dpps-field">
             <Label for="email">Email</Label>
             <Input id="email" v-model="form.email" type="email" />
           </div>
-          <div class="grid gap-1 sm:col-span-2">
+          <div class="dpps-field sm:col-span-2">
             <Label for="address">Address</Label>
-            <textarea id="address" v-model="form.address" rows="2" class="border-input rounded-md border bg-transparent px-3 py-2 text-sm" />
+            <textarea id="address" v-model="form.address" rows="2" class="dpps-textarea" />
           </div>
         </div>
         <p class="text-sm text-muted-foreground">
@@ -307,8 +308,8 @@ onMounted(() => {
 
         <div v-if="tab === 'qualifications'" class="grid gap-3">
           <p class="text-sm text-muted-foreground">Qualifications are optional.</p>
-          <div v-for="(row, index) in form.qualifications" :key="row.id ?? `new-${index}`" class="grid gap-2 rounded-xl border p-3 sm:grid-cols-4">
-            <select v-model="row.qualification_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" :aria-label="`Qualification ${index + 1}`">
+          <div v-for="(row, index) in form.qualifications" :key="row.id ?? `new-${index}`" class="grid gap-2 rounded-lg border bg-muted/30 p-3 sm:grid-cols-4">
+            <select v-model="row.qualification_id" class="dpps-select" :aria-label="`Qualification ${index + 1}`">
               <option value="">Choose</option>
               <option v-for="choice in profile.qualification_choices" :key="choice.id" :value="choice.id">{{ choice.name }}</option>
             </select>
@@ -321,27 +322,27 @@ onMounted(() => {
           </div>
         </div>
 
-        <div v-else-if="tab === 'documents'" class="rounded-xl border p-4 text-sm text-muted-foreground">
+        <div v-else-if="tab === 'documents'" class="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
           Documents are added in a later step.
         </div>
 
-        <div v-else class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
-            <thead class="border-b text-muted-foreground">
+        <div v-else class="dpps-table-wrap">
+          <table class="dpps-table">
+            <thead>
               <tr>
-                <th class="px-3 py-2 font-medium">When</th>
-                <th class="px-3 py-2 font-medium">Action</th>
-                <th class="px-3 py-2 font-medium">Description</th>
+                <th>When</th>
+                <th>Action</th>
+                <th>Description</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="profile.activity.length === 0">
-                <td class="px-3 py-2 text-muted-foreground" colspan="3">No activity yet.</td>
+                <td class="text-muted-foreground" colspan="3">No activity yet.</td>
               </tr>
-              <tr v-for="row in profile.activity" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.created_at }}</td>
-                <td class="px-3 py-2">{{ row.action }}</td>
-                <td class="px-3 py-2">{{ row.description }}</td>
+              <tr v-for="row in profile.activity" :key="row.id">
+                <td>{{ row.created_at }}</td>
+                <td>{{ row.action }}</td>
+                <td>{{ row.description }}</td>
               </tr>
             </tbody>
           </table>
@@ -350,9 +351,9 @@ onMounted(() => {
         <Alert v-if="warnings.length">
           <AlertTitle>{{ warnings.join(' ') }} Enter a reason to continue.</AlertTitle>
         </Alert>
-        <div v-if="warnings.length" class="grid max-w-lg gap-1">
+        <div v-if="warnings.length" class="grid max-w-lg gap-1.5">
           <Label for="warning-reason">Reason</Label>
-          <textarea id="warning-reason" v-model="warningReason" rows="2" class="border-input rounded-md border bg-transparent px-3 py-2 text-sm" aria-label="Warning reason" />
+          <textarea id="warning-reason" v-model="warningReason" rows="2" class="dpps-textarea" aria-label="Warning reason" />
         </div>
 
         <div class="flex gap-2">
@@ -360,15 +361,16 @@ onMounted(() => {
           <Button v-if="warnings.length" type="button" variant="outline" :disabled="saving" @click="save(true)">Confirm and save</Button>
         </div>
       </form>
+      </PageSection>
 
-      <div v-else class="grid gap-4">
-        <dl class="grid gap-2 text-sm sm:grid-cols-2">
-          <div><dt class="text-muted-foreground">Father name</dt><dd>{{ profile.father_name || '—' }}</dd></div>
-          <div><dt class="text-muted-foreground">Gender</dt><dd>{{ profile.gender || '—' }}</dd></div>
-          <div><dt class="text-muted-foreground">Date of birth</dt><dd>{{ profile.date_of_birth || '—' }}</dd></div>
-          <div><dt class="text-muted-foreground">Alt mobile</dt><dd>{{ profile.alt_mobile || '—' }}</dd></div>
-          <div><dt class="text-muted-foreground">Email</dt><dd>{{ profile.email || '—' }}</dd></div>
-          <div class="sm:col-span-2"><dt class="text-muted-foreground">Address</dt><dd>{{ profile.address || '—' }}</dd></div>
+      <PageSection v-else accent="sky" eyebrow="Details" title="Person details">
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Father name</dt><dd class="font-medium">{{ profile.father_name || '—' }}</dd></div>
+          <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Gender</dt><dd class="font-medium">{{ profile.gender || '—' }}</dd></div>
+          <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Date of birth</dt><dd class="font-medium">{{ profile.date_of_birth || '—' }}</dd></div>
+          <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Alt mobile</dt><dd class="font-medium">{{ profile.alt_mobile || '—' }}</dd></div>
+          <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Email</dt><dd class="font-medium">{{ profile.email || '—' }}</dd></div>
+          <div class="rounded-lg border bg-muted/30 px-3 py-2 sm:col-span-2"><dt class="text-xs text-muted-foreground">Address</dt><dd class="font-medium">{{ profile.address || '—' }}</dd></div>
         </dl>
         <div class="flex gap-2">
           <Button type="button" :variant="tab === 'qualifications' ? 'default' : 'outline'" @click="tab = 'qualifications'">Qualifications</Button>
@@ -383,24 +385,24 @@ onMounted(() => {
             </li>
           </ul>
         </div>
-        <div v-else-if="tab === 'documents'" class="rounded-xl border p-4 text-sm text-muted-foreground">
+        <div v-else-if="tab === 'documents'" class="mt-4 rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
           Documents are added in a later step.
         </div>
-        <div v-else class="overflow-x-auto rounded-xl border bg-card">
-          <table class="w-full text-left text-sm">
+        <div v-else class="mt-4 dpps-table-wrap">
+          <table class="dpps-table">
             <tbody>
               <tr v-if="profile.activity.length === 0">
-                <td class="px-3 py-2 text-muted-foreground">No activity yet.</td>
+                <td class="text-muted-foreground">No activity yet.</td>
               </tr>
-              <tr v-for="row in profile.activity" :key="row.id" class="border-b last:border-0">
-                <td class="px-3 py-2">{{ row.created_at }}</td>
-                <td class="px-3 py-2">{{ row.action }}</td>
-                <td class="px-3 py-2">{{ row.description }}</td>
+              <tr v-for="row in profile.activity" :key="row.id">
+                <td>{{ row.created_at }}</td>
+                <td>{{ row.action }}</td>
+                <td>{{ row.description }}</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
+      </PageSection>
     </template>
   </div>
 </template>

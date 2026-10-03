@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageSection from '@/components/PageSection.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -181,135 +183,147 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="grid gap-4">
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <h1 class="text-xl font-semibold">Applications</h1>
-      <Button v-if="canCreate && mode === 'list'" type="button" @click="startNew()">New Application</Button>
-    </div>
-
+  <div class="grid gap-6">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
 
     <template v-if="mode === 'list'">
-      <div class="flex flex-wrap items-end gap-3">
-        <div class="grid gap-1">
-          <Label for="app-entity">Applicant</Label>
-          <select id="app-entity" v-model="entity" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Applicant" @change="page = 1; load()">
-            <option value="">All</option>
-            <option value="company">Company</option>
-            <option value="dealer">Dealer</option>
-          </select>
+      <PageSection accent="amber" eyebrow="Workflow" title="Applications">
+        <template #actions>
+          <Button v-if="canCreate" type="button" size="sm" @click="startNew()">New Application</Button>
+        </template>
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="dpps-field">
+            <Label for="app-entity">Applicant</Label>
+            <select id="app-entity" v-model="entity" class="dpps-select" aria-label="Applicant" @change="page = 1; load()">
+              <option value="">All</option>
+              <option value="company">Company</option>
+              <option value="dealer">Dealer</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="app-type">Type</Label>
+            <select id="app-type" v-model="applicationType" class="dpps-select" aria-label="Type" @change="page = 1; load()">
+              <option value="">All</option>
+              <option value="new">New</option>
+              <option value="renewal">Renewal</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="app-stage">Stage</Label>
+            <select id="app-stage" v-model="stage" class="dpps-select" aria-label="Stage" @change="page = 1; load()">
+              <option value="">All</option>
+              <option v-for="item in meta.stages || []" :key="item.code" :value="item.code">{{ item.name }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="app-status">Status</Label>
+            <select id="app-status" v-model="status" class="dpps-select" aria-label="Status" @change="page = 1; load()">
+              <option v-for="[value, label] in statuses" :key="value" :value="value">{{ label }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="app-district">District</Label>
+            <select id="app-district" v-model="districtId" class="dpps-select" aria-label="District" @change="page = 1; load()">
+              <option value="">All</option>
+              <option v-for="district in meta.districts || []" :key="district.id" :value="district.id">{{ district.name }}</option>
+            </select>
+          </div>
         </div>
-        <div class="grid gap-1">
-          <Label for="app-type">Type</Label>
-          <select id="app-type" v-model="applicationType" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Type" @change="page = 1; load()">
-            <option value="">All</option>
-            <option value="new">New</option>
-            <option value="renewal">Renewal</option>
-          </select>
-        </div>
-        <div class="grid gap-1">
-          <Label for="app-stage">Stage</Label>
-          <select id="app-stage" v-model="stage" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Stage" @change="page = 1; load()">
-            <option value="">All</option>
-            <option v-for="item in meta.stages || []" :key="item.code" :value="item.code">{{ item.name }}</option>
-          </select>
-        </div>
-        <div class="grid gap-1">
-          <Label for="app-status">Status</Label>
-          <select id="app-status" v-model="status" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="Status" @change="page = 1; load()">
-            <option v-for="[value, label] in statuses" :key="value" :value="value">{{ label }}</option>
-          </select>
-        </div>
-        <div class="grid gap-1">
-          <Label for="app-district">District</Label>
-          <select id="app-district" v-model="districtId" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" aria-label="District" @change="page = 1; load()">
-            <option value="">All</option>
-            <option v-for="district in meta.districts || []" :key="district.id" :value="district.id">{{ district.name }}</option>
-          </select>
-        </div>
-      </div>
+      </PageSection>
 
-      <div class="overflow-x-auto rounded-md border">
-        <table class="w-full text-sm">
-          <thead class="bg-muted/50 text-left">
-            <tr>
-              <th class="px-3 py-2 font-medium">App No</th>
-              <th class="px-3 py-2 font-medium">Applicant</th>
-              <th class="px-3 py-2 font-medium">Type</th>
-              <th class="px-3 py-2 font-medium">Current Stage</th>
-              <th class="px-3 py-2 font-medium">Day</th>
-              <th class="px-3 py-2 font-medium">SLA</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id" class="cursor-pointer border-t" @click="router.push({ name: 'application-detail', params: { id: row.id } })">
-              <td class="px-3 py-2">{{ row.application_no }}</td>
-              <td class="px-3 py-2">{{ row.applicant_name }}</td>
-              <td class="px-3 py-2">{{ row.application_type === 'renewal' ? 'Renewal' : 'New' }}</td>
-              <td class="px-3 py-2">{{ stageLabel(row) }}</td>
-              <td class="px-3 py-2">{{ row.days_in_stage }}/{{ row.sla_days ?? '—' }}</td>
-              <td class="px-3 py-2">{{ row.sla_breached ? 'Overdue' : 'On time' }}</td>
-            </tr>
-            <tr v-if="rows.length === 0">
-              <td class="text-muted-foreground px-3 py-4" colspan="6">No applications.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="text-muted-foreground text-sm">Showing {{ meta.total }} · Status {{ statusLabel(status) }}</p>
-      <div class="flex gap-2">
-        <Button type="button" variant="outline" :disabled="page <= 1" @click="page -= 1; load()">Previous</Button>
-        <Button type="button" variant="outline" :disabled="page >= meta.last_page" @click="page += 1; load()">Next</Button>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>App No</th>
+                <th>Applicant</th>
+                <th>Type</th>
+                <th>Current Stage</th>
+                <th>Day</th>
+                <th>SLA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in rows" :key="row.id" class="dpps-row-link" @click="router.push({ name: 'application-detail', params: { id: row.id } })">
+                <td class="font-medium">{{ row.application_no }}</td>
+                <td>{{ row.applicant_name }}</td>
+                <td><StatusBadge :value="row.application_type" :label="row.application_type === 'renewal' ? 'Renewal' : 'New'" /></td>
+                <td>{{ stageLabel(row) }}</td>
+                <td class="tabular-nums">{{ row.days_in_stage }}/{{ row.sla_days ?? '—' }}</td>
+                <td>
+                  <StatusBadge
+                    :value="row.sla_breached ? 'overdue' : 'on_time'"
+                    :label="row.sla_breached ? 'Overdue' : 'On time'"
+                  />
+                </td>
+              </tr>
+              <tr v-if="rows.length === 0">
+                <td class="text-muted-foreground" colspan="6">No applications.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
+      <div class="flex items-center justify-between text-sm">
+        <p class="text-muted-foreground">Showing {{ meta.total }} · Status {{ statusLabel(status) }}</p>
+        <div class="flex gap-2">
+          <Button type="button" variant="outline" :disabled="page <= 1" @click="page -= 1; load()">Previous</Button>
+          <Button type="button" variant="outline" :disabled="page >= meta.last_page" @click="page += 1; load()">Next</Button>
+        </div>
       </div>
     </template>
 
-    <form v-else class="grid max-w-xl gap-3" @submit.prevent="save">
-      <h2 class="text-lg font-medium">New application</h2>
-      <Alert v-if="formError" variant="destructive">
-        <AlertTitle>{{ formError }}</AlertTitle>
-      </Alert>
-      <div class="grid gap-1">
-        <Label for="form-entity">Applicant kind</Label>
-        <select id="form-entity" v-model="form.licensable_type" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="Applicant kind" @change="form.licensable_id = ''; loadApplicants()">
-          <option value="company">Company</option>
-          <option value="dealer">Dealer</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-search">Find applicant</Label>
-        <div class="flex gap-2">
-          <Input id="form-search" v-model="applicantSearch" aria-label="Find applicant" @keyup.enter.prevent="loadApplicants" />
-          <Button type="button" variant="outline" @click="loadApplicants">Search</Button>
+    <form v-else class="grid gap-6" @submit.prevent="save">
+      <PageSection accent="amber" eyebrow="Workflow" title="New application">
+        <Alert v-if="formError" variant="destructive" class="mb-4">
+          <AlertTitle>{{ formError }}</AlertTitle>
+        </Alert>
+        <div class="grid max-w-xl gap-4">
+          <div class="dpps-field">
+            <Label for="form-entity">Applicant kind</Label>
+            <select id="form-entity" v-model="form.licensable_type" class="dpps-select" required aria-label="Applicant kind" @change="form.licensable_id = ''; loadApplicants()">
+              <option value="company">Company</option>
+              <option value="dealer">Dealer</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="form-search">Find applicant</Label>
+            <div class="flex gap-2">
+              <Input id="form-search" v-model="applicantSearch" aria-label="Find applicant" @keyup.enter.prevent="loadApplicants" />
+              <Button type="button" variant="outline" @click="loadApplicants">Search</Button>
+            </div>
+          </div>
+          <div class="dpps-field">
+            <Label for="form-applicant">Applicant</Label>
+            <select id="form-applicant" v-model="form.licensable_id" class="dpps-select" required aria-label="Applicant">
+              <option value="">Choose</option>
+              <option v-for="row in applicants" :key="row.id" :value="String(row.id)">{{ applicantLabel(row) }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="form-kind">Type</Label>
+            <select id="form-kind" v-model="form.application_type" class="dpps-select" required aria-label="Type">
+              <option value="new">New</option>
+              <option value="renewal">Renewal</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="form-diary">Diary no</Label>
+            <Input id="form-diary" v-model="form.diary_no" aria-label="Diary no" />
+          </div>
+          <div class="dpps-field">
+            <Label for="form-received">Received</Label>
+            <Input id="form-received" v-model="form.received_at" type="date" aria-label="Received" />
+          </div>
+          <div class="flex gap-2">
+            <Button type="button" variant="outline" @click="mode = 'list'">Cancel</Button>
+            <Button type="submit" :disabled="saving">Save</Button>
+          </div>
         </div>
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-applicant">Applicant</Label>
-        <select id="form-applicant" v-model="form.licensable_id" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="Applicant">
-          <option value="">Choose</option>
-          <option v-for="row in applicants" :key="row.id" :value="String(row.id)">{{ applicantLabel(row) }}</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-kind">Type</Label>
-        <select id="form-kind" v-model="form.application_type" class="border-input h-9 rounded-md border bg-transparent px-2 text-sm" required aria-label="Type">
-          <option value="new">New</option>
-          <option value="renewal">Renewal</option>
-        </select>
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-diary">Diary no</Label>
-        <Input id="form-diary" v-model="form.diary_no" aria-label="Diary no" />
-      </div>
-      <div class="grid gap-1">
-        <Label for="form-received">Received</Label>
-        <Input id="form-received" v-model="form.received_at" type="date" aria-label="Received" />
-      </div>
-      <div class="flex gap-2">
-        <Button type="button" variant="outline" @click="mode = 'list'">Cancel</Button>
-        <Button type="submit" :disabled="saving">Save</Button>
-      </div>
+      </PageSection>
     </form>
   </div>
 </template>

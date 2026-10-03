@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import PageSection from '@/components/PageSection.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,7 +75,7 @@ onMounted(loadSettings)
 </script>
 
 <template>
-  <form class="grid max-w-3xl gap-8" @submit.prevent="save">
+  <form class="grid gap-6" @submit.prevent="save">
     <Alert v-if="loadError" variant="destructive">
       <AlertTitle>{{ loadError }}</AlertTitle>
     </Alert>
@@ -85,35 +86,42 @@ onMounted(loadSettings)
       <AlertTitle>{{ notice }}</AlertTitle>
     </Alert>
 
-    <section v-for="group in grouped" :key="group.id" class="grid gap-4">
-      <h2 class="text-lg font-semibold">{{ group.label }}</h2>
-      <div v-for="setting in group.settings" :key="setting.key" class="grid gap-1">
-        <Label :for="setting.key">{{ setting.label }}</Label>
-        <label v-if="setting.data_type === 'boolean'" class="flex items-center gap-2 text-sm" :for="setting.key">
-          <input :id="setting.key" v-model="setting.value" type="checkbox">
-          {{ setting.value ? 'ON' : 'OFF' }}
-        </label>
-        <Input
-          v-else-if="setting.data_type === 'integer'"
-          :id="setting.key"
-          v-model.number="setting.value"
-          type="number"
-          min="1"
-          required
-        />
-        <Input v-else :id="setting.key" v-model="setting.value" required />
-        <p v-if="setting.key === 'enforce_document_requirements'" class="text-sm text-muted-foreground">
-          ON: a license cannot be issued while any required document is missing or not verified.
-          OFF: a license can be issued; it is marked "Documents incomplete" until documents are uploaded and verified.
-        </p>
-        <p v-else-if="setting.description" class="text-sm text-muted-foreground">{{ setting.description }}</p>
-        <p v-if="setting.key.endsWith('_pattern')" class="text-sm">Preview: {{ preview(setting.value) }}</p>
+    <PageSection
+      v-for="group in grouped"
+      :key="group.id"
+      accent="slate"
+      eyebrow="Settings"
+      :title="group.label"
+    >
+      <div class="grid max-w-3xl gap-4">
+        <div v-for="setting in group.settings" :key="setting.key" class="dpps-field">
+          <Label :for="setting.key">{{ setting.label }}</Label>
+          <label v-if="setting.data_type === 'boolean'" class="flex items-center gap-2 text-sm" :for="setting.key">
+            <input :id="setting.key" v-model="setting.value" type="checkbox">
+            {{ setting.value ? 'ON' : 'OFF' }}
+          </label>
+          <Input
+            v-else-if="setting.data_type === 'integer'"
+            :id="setting.key"
+            v-model.number="setting.value"
+            type="number"
+            min="1"
+            required
+          />
+          <Input v-else :id="setting.key" v-model="setting.value" required />
+          <p v-if="setting.key === 'enforce_document_requirements'" class="text-sm text-muted-foreground">
+            ON: a license cannot be issued while any required document is missing or not verified.
+            OFF: a license can be issued; it is marked "Documents incomplete" until documents are uploaded and verified.
+          </p>
+          <p v-else-if="setting.description" class="text-sm text-muted-foreground">{{ setting.description }}</p>
+          <p v-if="setting.key.endsWith('_pattern')" class="text-sm">Preview: {{ preview(setting.value) }}</p>
+        </div>
       </div>
-    </section>
+    </PageSection>
 
-    <p class="text-sm text-muted-foreground">Fees are managed by the system administrator (database only).</p>
-    <div>
+    <PageSection accent="slate" eyebrow="Settings" title="Save">
+      <p class="mb-4 text-sm text-muted-foreground">Fees are managed by the system administrator (database only).</p>
       <Button type="submit" :disabled="saving">Save</Button>
-    </div>
+    </PageSection>
   </form>
 </template>

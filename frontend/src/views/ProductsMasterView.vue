@@ -16,6 +16,8 @@ const categories = [
 <template>
   <CatalogPanel
     endpoint="/api/v1/products"
+    eyebrow="Catalog"
+    title="Products master"
     search-placeholder="Name, concentration, or formulation"
     :columns="[
       { key: 'generic_name', label: 'Generic name' },
