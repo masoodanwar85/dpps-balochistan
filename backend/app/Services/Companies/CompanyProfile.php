@@ -4,6 +4,7 @@ namespace App\Services\Companies;
 
 use App\Models\Company;
 use App\Models\CompanyPerson;
+use App\Models\Dealer;
 use App\Models\License;
 use App\Models\Setting;
 use App\Support\SettingValue;
@@ -26,6 +27,7 @@ class CompanyProfile
             'license' => $license ? $this->license($license) : null,
             'alerts' => $this->alerts($verified, $minimum, $license),
             'contacts' => $this->contacts($company),
+            'dealers' => $this->dealers($company),
             'verified_technical_staff' => $verified,
             'minimum_technical_staff' => $minimum,
         ];
@@ -101,6 +103,8 @@ class CompanyProfile
             'pcpa_member' => $company->pcpa_member,
             'croplife_member' => $company->croplife_member,
             'membership_no' => $company->membership_no,
+            'csr' => $company->csr,
+            'rnd' => $company->rnd,
             'status' => $company->status,
             'expiry_date' => $license?->valid_to?->toDateString(),
         ];
@@ -165,6 +169,25 @@ class CompanyProfile
             ->map(fn (CompanyPerson $row) => [
                 'id' => $row->id,
                 'name' => $row->person?->full_name,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, dealer_code: string, shop_name: string, district_name: ?string, status: string}>
+     */
+    private function dealers(Company $company): array
+    {
+        return $company->dealers()
+            ->with('district:id,name')
+            ->orderBy('shop_name')
+            ->get()
+            ->map(fn (Dealer $dealer) => [
+                'id' => $dealer->id,
+                'dealer_code' => $dealer->dealer_code,
+                'shop_name' => $dealer->shop_name,
+                'district_name' => $dealer->district?->name,
+                'status' => $dealer->status,
             ])
             ->all();
     }

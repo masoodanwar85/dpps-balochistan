@@ -6,6 +6,7 @@ use App\Exports\DealersExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dealers\DeleteDealerRequest;
 use App\Http\Requests\Dealers\SaveDealerRequest;
+use App\Models\Company;
 use App\Models\Dealer;
 use App\Models\District;
 use App\Models\License;
@@ -44,17 +45,19 @@ class DealerController extends Controller
             [
                 ...ListQuery::meta($page),
                 'districts' => $this->districts($request),
+                'companies' => $this->companies(),
             ],
         );
     }
 
     public function show(Dealer $dealer): JsonResponse
     {
-        $dealer->load(['district', 'tehsil']);
+        $dealer->load(['district', 'tehsil', 'companies:id,name,company_code']);
 
         return ApiResponse::success([
             'dealer' => $this->payload($dealer),
             'license' => $this->license($dealer),
+            'companies' => $this->companies(),
         ]);
     }
 
@@ -79,7 +82,7 @@ class DealerController extends Controller
             return ApiResponse::warnings($exception->warnings);
         }
 
-        $dealer->load(['district', 'tehsil']);
+        $dealer->load(['district', 'tehsil', 'companies:id,name,company_code']);
 
         return ApiResponse::success($this->payload($dealer), status: 201);
     }
@@ -92,7 +95,7 @@ class DealerController extends Controller
             return ApiResponse::warnings($exception->warnings);
         }
 
-        $dealer->load(['district', 'tehsil']);
+        $dealer->load(['district', 'tehsil', 'companies:id,name,company_code']);
 
         return ApiResponse::success($this->payload($dealer));
     }
@@ -146,7 +149,7 @@ class DealerController extends Controller
      */
     private function payload(Dealer $dealer): array
     {
-        $dealer->loadMissing(['district', 'tehsil']);
+        $dealer->loadMissing(['district', 'tehsil', 'companies:id,name,company_code']);
         $expiry = $dealer->getAttribute('expiry_date');
 
         if ($expiry === null && ! array_key_exists('expiry_date', $dealer->getAttributes())) {
@@ -173,7 +176,33 @@ class DealerController extends Controller
             'email' => $dealer->email,
             'status' => $dealer->status,
             'expiry_date' => $expiry ? Carbon::parse($expiry)->toDateString() : null,
+            'companies' => $dealer->companies
+                ->sortBy('name')
+                ->values()
+                ->map(fn (Company $company) => [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'company_code' => $company->company_code,
+                ])
+                ->all(),
+            'company_ids' => $dealer->companies->pluck('id')->values()->all(),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, name: string, company_code: string}>
+     */
+    private function companies(): array
+    {
+        return Company::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'company_code'])
+            ->map(fn (Company $company) => [
+                'id' => $company->id,
+                'name' => $company->name,
+                'company_code' => $company->company_code,
+            ])
+            ->all();
     }
 
     /**

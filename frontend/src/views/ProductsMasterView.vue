@@ -18,9 +18,9 @@ const categories = [
     endpoint="/api/v1/products"
     eyebrow="Catalog"
     title="Products master"
-    search-placeholder="Name, concentration, or formulation"
+    search-placeholder="Market name, generic name, concentration, or formulation"
     :columns="[
-      { key: 'generic_name', label: 'Generic name' },
+      { key: 'display_name', label: 'Market name' },
       { key: 'concentration', label: 'Concentration' },
       { key: 'formulation', label: 'Formulation' },
       { key: 'category', label: 'Category' },
@@ -29,6 +29,7 @@ const categories = [
     ]"
     :fields="[
       { key: 'generic_name', label: 'Generic name', type: 'text', required: true },
+      { key: 'market_name', label: 'Market name', type: 'text', required: true },
       { key: 'concentration', label: 'Concentration', type: 'text', required: true },
       { key: 'formulation', label: 'Formulation', type: 'text', required: true },
       { key: 'category', label: 'Category', type: 'select', required: true, options: categories },
@@ -37,6 +38,7 @@ const categories = [
     ]"
     :blank="{
       generic_name: '',
+      market_name: '',
       concentration: '',
       formulation: '',
       category: 'insecticide',

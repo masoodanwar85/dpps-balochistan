@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Dealers;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class SaveDealerRequest extends FormRequest
@@ -51,6 +52,12 @@ class SaveDealerRequest extends FormRequest
             'gps_lng' => ['nullable', 'numeric', 'between:-180,180'],
             'mobile' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:150'],
+            'company_ids' => ['required', 'array', 'min:1'],
+            'company_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('companies', 'id')->whereNull('deleted_at'),
+            ],
             'confirm_warnings' => ['sometimes', 'boolean'],
             'warning_reason' => ['nullable', 'string', 'max:255'],
         ];

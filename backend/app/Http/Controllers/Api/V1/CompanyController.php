@@ -50,7 +50,9 @@ class CompanyController extends Controller
     {
         $company->load('province');
 
-        return ApiResponse::success($this->payload($company));
+        return ApiResponse::success($this->payload($company), [
+            'provinces' => $this->provinces(),
+        ]);
     }
 
     public function checkDuplicate(Request $request, CompanyName $names): JsonResponse
@@ -176,6 +178,8 @@ class CompanyController extends Controller
             'pcpa_member' => $company->pcpa_member,
             'croplife_member' => $company->croplife_member,
             'membership_no' => $company->membership_no,
+            'csr' => $company->csr,
+            'rnd' => $company->rnd,
             'status' => $company->status,
             'expiry_date' => $expiry ? Carbon::parse($expiry)->toDateString() : null,
         ];

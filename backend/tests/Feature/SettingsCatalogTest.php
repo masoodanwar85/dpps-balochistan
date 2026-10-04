@@ -2,6 +2,7 @@
 
 use App\Models\ActivityLog;
 use App\Models\District;
+use App\Models\FeeStructure;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\User;
@@ -9,6 +10,7 @@ use App\Support\NumberPattern;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Database\Seeders\SettingsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 
 uses(RefreshDatabase::class);
 
@@ -223,6 +225,7 @@ it('keeps the products master separate from company product permission', functio
 
     $created = $this->actingAs($director, 'sanctum')->postJson('/api/v1/products', [
         'generic_name' => 'Chlorpyrifos',
+        'market_name' => 'Chlorpyrifos Market',
         'concentration' => '40%',
         'formulation' => 'EC',
         'category' => 'insecticide',
@@ -230,11 +233,15 @@ it('keeps the products master separate from company product permission', functio
         'is_active' => true,
     ]);
 
-    $created->assertCreated()->assertJsonPath('data.generic_name', 'Chlorpyrifos');
+    $created->assertCreated()
+        ->assertJsonPath('data.generic_name', 'Chlorpyrifos')
+        ->assertJsonPath('data.market_name', 'Chlorpyrifos Market')
+        ->assertJsonPath('data.display_name', 'Chlorpyrifos Market (Chlorpyrifos)');
     $productId = $created->json('data.id');
 
     $this->actingAs($director, 'sanctum')->postJson('/api/v1/products', [
         'generic_name' => 'Chlorpyrifos',
+        'market_name' => 'Chlorpyrifos Market',
         'concentration' => '40%',
         'formulation' => 'EC',
         'category' => 'insecticide',
@@ -244,6 +251,7 @@ it('keeps the products master separate from company product permission', functio
 
     $this->actingAs($director, 'sanctum')->postJson('/api/v1/products', [
         'generic_name' => 'Chlorpyrifos',
+        'market_name' => 'Chlorpyrifos WP Market',
         'concentration' => '40%',
         'formulation' => 'WP',
         'category' => 'insecticide',
@@ -251,8 +259,19 @@ it('keeps the products master separate from company product permission', functio
         'is_active' => true,
     ])->assertCreated();
 
+    $this->actingAs($director, 'sanctum')->postJson('/api/v1/products', [
+        'generic_name' => 'Imidacloprid',
+        'market_name' => 'Chlorpyrifos Market',
+        'concentration' => '20%',
+        'formulation' => 'SL',
+        'category' => 'insecticide',
+        'is_restricted' => false,
+        'is_active' => true,
+    ])->assertUnprocessable();
+
     $this->actingAs($director, 'sanctum')->putJson('/api/v1/products/'.$productId, [
         'generic_name' => 'Chlorpyrifos',
+        'market_name' => 'Chlorpyrifos Market',
         'concentration' => '40%',
         'formulation' => 'EC',
         'category' => 'insecticide',
@@ -262,4 +281,87 @@ it('keeps the products master separate from company product permission', functio
 
     expect(Product::query()->find($productId)->is_active)->toBeFalse()
         ->and(ActivityLog::query()->where('subject_type', 'product')->where('action', 'created')->count())->toBe(2);
+});
+
+it('lets a settings manager set registration and renewal fees and closes the previous period', function () {
+    $admin = settingsUser('Super Admin');
+    $entry = settingsUser('Data Entry Operator');
+
+    $this->actingAs($entry, 'sanctum')->getJson('/api/v1/fees')->assertForbidden();
+
+    FeeStructure::query()->create([
+        'entity_type' => 'company',
+        'fee_type' => 'registration',
+        'amount' => 50000,
+        'effective_from' => '2020-01-01',
+        'effective_to' => null,
+        'notes' => 'Old rate',
+    ]);
+
+    $list = $this->actingAs($admin, 'sanctum')->getJson('/api/v1/fees');
+    $list->assertOk()->assertJsonCount(4, 'data')
+        ->assertJsonPath('data.0.label', 'Company registration')
+        ->assertJsonPath('data.0.current.amount', '50000.00');
+
+    $saved = $this->actingAs($admin, 'sanctum')->putJson('/api/v1/fees', [
+        'fees' => [
+            [
+                'entity_type' => 'company',
+                'fee_type' => 'registration',
+                'amount' => 55000,
+                'effective_from' => '2026-10-01',
+            ],
+            [
+                'entity_type' => 'company',
+                'fee_type' => 'renewal',
+                'amount' => 30000,
+                'effective_from' => '2026-10-01',
+            ],
+            [
+                'entity_type' => 'dealer',
+                'fee_type' => 'registration',
+                'amount' => 5000,
+                'effective_from' => '2026-10-01',
+            ],
+            [
+                'entity_type' => 'dealer',
+                'fee_type' => 'renewal',
+                'amount' => 2500,
+                'effective_from' => '2026-10-01',
+            ],
+        ],
+    ]);
+
+    $saved->assertOk()
+        ->assertJsonPath('data.0.current.amount', '55000.00')
+        ->assertJsonPath('data.0.current.effective_from', '2026-10-01');
+
+    $closed = FeeStructure::query()
+        ->where('entity_type', 'company')
+        ->where('fee_type', 'registration')
+        ->where('amount', 50000)
+        ->first();
+
+    expect($closed?->effective_to?->toDateString())->toBe('2026-09-30')
+        ->and((float) FeeStructure::query()->whereNull('effective_to')->where('entity_type', 'company')->where('fee_type', 'registration')->value('amount'))
+        ->toBe(55000.0)
+        ->and(ActivityLog::query()->where('subject_type', 'fee_structure')->where('action', 'created')->count())->toBeGreaterThan(0);
+
+    $this->actingAs($admin, 'sanctum')->putJson('/api/v1/fees', [
+        'fees' => [[
+            'entity_type' => 'company',
+            'fee_type' => 'registration',
+            'amount' => 56000,
+            'effective_from' => '2026-10-01',
+        ]],
+    ])->assertUnprocessable();
+
+    $this->actingAs($admin, 'sanctum')->putJson('/api/v1/fees', [
+        'fees' => [[
+            'entity_type' => 'company',
+            'fee_type' => 'late_renewal_per_day',
+            'amount' => 500,
+            'effective_from' => Carbon::today()->toDateString(),
+        ]],
+    ])->assertUnprocessable();
 });

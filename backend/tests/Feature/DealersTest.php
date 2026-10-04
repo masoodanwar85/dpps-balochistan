@@ -23,6 +23,10 @@ beforeEach(function () {
 
 function dealerBody(int $districtId, array $overrides = []): array
 {
+    if (! array_key_exists('company_ids', $overrides)) {
+        $overrides['company_ids'] = [Company::factory()->create()->id];
+    }
+
     return array_merge([
         'shop_name' => 'Kisan Zarai Markaz',
         'district_id' => $districtId,
@@ -285,4 +289,61 @@ it('stores a dealer document and warns when the same file is already on a compan
     $this->actingAs($companyUser, 'sanctum')
         ->getJson('/api/v1/dealers/'.$dealer->json('data.id').'/documents')
         ->assertNotFound();
+});
+
+it('requires at least one company and hides soft-deleted companies from the link', function () {
+    $entry = companyActor('Data Entry Operator');
+    $district = District::factory()->create(['code' => 'QTA']);
+    $first = Company::factory()->create(['name' => 'Alpha Agro']);
+    $second = Company::factory()->create(['name' => 'Beta Agro']);
+    $gone = Company::factory()->create(['name' => 'Gone Agro']);
+    $gone->delete();
+
+    $this->actingAs($entry, 'sanctum')
+        ->postJson('/api/v1/dealers', dealerBody($district->id, [
+            'company_ids' => [],
+        ]))
+        ->assertUnprocessable();
+
+    $this->actingAs($entry, 'sanctum')
+        ->postJson('/api/v1/dealers', dealerBody($district->id, [
+            'company_ids' => [$gone->id],
+        ]))
+        ->assertUnprocessable();
+
+    $created = $this->actingAs($entry, 'sanctum')
+        ->postJson('/api/v1/dealers', dealerBody($district->id, [
+            'company_ids' => [$first->id, $second->id],
+        ]));
+
+    $created->assertCreated()
+        ->assertJsonPath('data.company_ids', [$first->id, $second->id])
+        ->assertJsonCount(2, 'data.companies');
+
+    $this->actingAs($entry, 'sanctum')
+        ->getJson('/api/v1/dealers/'.$created->json('data.id'))
+        ->assertOk()
+        ->assertJsonPath('data.dealer.companies.0.name', 'Alpha Agro');
+
+    $profile = $this->actingAs($entry, 'sanctum')
+        ->getJson('/api/v1/companies/'.$first->id.'/profile');
+
+    $profile->assertOk()
+        ->assertJsonPath('data.dealers.0.shop_name', 'Kisan Zarai Markaz')
+        ->assertJsonPath('data.dealers.0.dealer_code', 'D-QTA-0001');
+
+    $choices = $this->actingAs($entry, 'sanctum')->getJson('/api/v1/dealers');
+    $choices->assertOk();
+    expect(collect($choices->json('meta.companies'))->pluck('id'))->toContain($first->id)
+        ->and(collect($choices->json('meta.companies'))->pluck('id'))->not->toContain($gone->id);
+
+    $this->actingAs($entry, 'sanctum')
+        ->putJson('/api/v1/dealers/'.$created->json('data.id'), dealerBody($district->id, [
+            'company_ids' => [$second->id],
+        ]))
+        ->assertOk()
+        ->assertJsonPath('data.company_ids', [$second->id]);
+
+    expect($first->fresh()->dealers)->toHaveCount(0)
+        ->and($second->fresh()->dealers)->toHaveCount(1);
 });

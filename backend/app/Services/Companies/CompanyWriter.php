@@ -116,6 +116,8 @@ class CompanyWriter
             'pcpa_member' => (bool) $data['pcpa_member'],
             'croplife_member' => (bool) $data['croplife_member'],
             'membership_no' => $data['membership_no'] ?? null,
+            'csr' => (bool) $data['csr'],
+            'rnd' => (bool) $data['rnd'],
         ]);
     }
 
@@ -178,6 +180,8 @@ class CompanyWriter
             'pcpa_member' => $company->pcpa_member,
             'croplife_member' => $company->croplife_member,
             'membership_no' => $company->membership_no,
+            'csr' => $company->csr,
+            'rnd' => $company->rnd,
             'status' => $company->status,
         ];
     }

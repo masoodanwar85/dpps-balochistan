@@ -25,7 +25,10 @@ class CompanyProducts
             'company_id' => $row->company_id,
             'product_id' => $row->product_id,
             'brand_name' => $row->brand_name,
+            'market_name' => $row->product?->market_name,
             'generic_name' => $row->product?->generic_name,
+            'display_name' => $row->product?->displayName(),
+            'product_label' => $row->product?->catalogLabel(),
             'concentration' => $row->product?->concentration,
             'formulation' => $row->product?->formulation,
             'dpp_registration_no' => $row->dpp_registration_no,
@@ -44,12 +47,13 @@ class CompanyProducts
     {
         return Product::query()
             ->where('is_active', true)
+            ->orderBy('market_name')
             ->orderBy('generic_name')
             ->orderBy('concentration')
             ->get()
             ->map(fn (Product $product) => [
                 'id' => $product->id,
-                'label' => $product->generic_name.' '.$product->concentration.' '.$product->formulation,
+                'label' => $product->catalogLabel(),
             ])
             ->all();
     }

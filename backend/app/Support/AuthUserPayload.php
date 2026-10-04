@@ -11,7 +11,7 @@ class AuthUserPayload
      */
     public static function from(User $user): array
     {
-        return [
+        $payload = [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
@@ -24,5 +24,13 @@ class AuthUserPayload
             'roles' => $user->getRoleNames()->sort()->values()->all(),
             'permissions' => $user->getAllPermissions()->pluck('name')->unique()->sort()->values()->all(),
         ];
+
+        if ($user->user_type === 'company' && $user->company_id) {
+            $user->loadMissing('company');
+            $payload['company_csr'] = (bool) $user->company?->csr;
+            $payload['company_rnd'] = (bool) $user->company?->rnd;
+        }
+
+        return $payload;
     }
 }

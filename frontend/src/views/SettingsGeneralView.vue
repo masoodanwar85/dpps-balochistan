@@ -120,7 +120,7 @@ onMounted(loadSettings)
     </PageSection>
 
     <PageSection accent="slate" eyebrow="Settings" title="Save">
-      <p class="mb-4 text-sm text-muted-foreground">Fees are managed by the system administrator (database only).</p>
+      <p class="mb-4 text-sm text-muted-foreground">Registration and renewal fees are edited under Settings › Fees.</p>
       <Button type="submit" :disabled="saving">Save</Button>
     </PageSection>
   </form>

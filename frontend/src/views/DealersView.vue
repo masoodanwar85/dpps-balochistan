@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PageSection from '@/components/PageSection.vue'
+import SearchableMultiSelect from '@/components/SearchableMultiSelect.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ const statuses = [
 const rows = ref([])
 const meta = ref({ current_page: 1, per_page: 25, total: 0, last_page: 1 })
 const districts = ref([])
+const companyChoices = ref([])
 const search = ref('')
 const districtId = ref('')
 const tehsilId = ref('')
@@ -94,6 +96,7 @@ function blankForm() {
     gps_lng: '',
     mobile: '',
     email: '',
+    company_ids: [],
   }
 }
 
@@ -134,6 +137,7 @@ async function load() {
   rows.value = payload.data
   meta.value = payload.meta
   districts.value = payload.meta.districts ?? districts.value
+  companyChoices.value = payload.meta.companies ?? companyChoices.value
 }
 
 function applyFilters() {
@@ -169,6 +173,7 @@ async function openEditor(id) {
 
   const row = payload.data.dealer
   dealer.value = row
+  companyChoices.value = payload.data.companies ?? companyChoices.value
   form.value = {
     shop_name: row.shop_name,
     district_id: row.district_id,
@@ -178,6 +183,7 @@ async function openEditor(id) {
     gps_lng: row.gps_lng ?? '',
     mobile: row.mobile || '',
     email: row.email || '',
+    company_ids: row.company_ids || [],
   }
   warnings.value = []
   warningReason.value = ''
@@ -195,6 +201,7 @@ function payloadBody(confirm) {
     gps_lng: form.value.gps_lng === '' ? null : Number(form.value.gps_lng),
     mobile: form.value.mobile || null,
     email: form.value.email || null,
+    company_ids: (form.value.company_ids || []).map((id) => Number(id)),
   }
 
   if (confirm) {
@@ -385,6 +392,16 @@ onMounted(async () => {
           <div class="dpps-field sm:col-span-2">
             <Label for="shop-name">Shop name</Label>
             <Input id="shop-name" v-model="form.shop_name" required aria-label="Shop name" />
+          </div>
+          <div class="sm:col-span-2">
+            <SearchableMultiSelect
+              id="dealer-companies"
+              v-model="form.company_ids"
+              label="Companies"
+              placeholder="Search companies"
+              :options="companyChoices"
+              required
+            />
           </div>
           <div class="dpps-field">
             <Label for="form-district">District</Label>

@@ -20,7 +20,7 @@ const unread = ref(0)
 const companyPortal = computed(() => auth.user?.user_type === 'company')
 const items = computed(() => (
   companyPortal.value
-    ? visibleNavigation(auth.permissions, portalNavigation)
+    ? visibleNavigation(auth.permissions, portalNavigation, auth.user)
     : visibleNavigation(auth.permissions)
 ))
 const title = computed(() => route.meta.title || 'Digital Plant Protection System')

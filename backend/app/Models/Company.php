@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 
@@ -36,6 +38,8 @@ class Company extends Model
         'pcpa_member',
         'croplife_member',
         'membership_no',
+        'csr',
+        'rnd',
         'status',
         'legacy_reg_no',
         'legacy_notes',
@@ -52,12 +56,25 @@ class Company extends Model
             'incorporation_date' => 'date',
             'pcpa_member' => 'boolean',
             'croplife_member' => 'boolean',
+            'csr' => 'boolean',
+            'rnd' => 'boolean',
         ];
     }
 
     public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
+    }
+
+    public function dealers(): BelongsToMany
+    {
+        return $this->belongsToMany(Dealer::class, 'company_dealers')
+            ->withTimestamps();
+    }
+
+    public function csrRndFiles(): HasMany
+    {
+        return $this->hasMany(CompanyCsrRndFile::class);
     }
 
     /**

@@ -16,7 +16,7 @@ class DealerDirectory
     {
         $query = Dealer::query()
             ->select('dealers.*')
-            ->with(['district', 'tehsil'])
+            ->with(['district', 'tehsil', 'companies:id,name,company_code'])
             ->withExpiry()
             ->visibleTo($request->user());
 

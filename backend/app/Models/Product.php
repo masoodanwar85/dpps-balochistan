@@ -13,6 +13,7 @@ class Product extends Model
 
     protected $fillable = [
         'generic_name',
+        'market_name',
         'concentration',
         'formulation',
         'category',
@@ -26,5 +27,15 @@ class Product extends Model
             'is_restricted' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function displayName(): string
+    {
+        return $this->market_name.' ('.$this->generic_name.')';
+    }
+
+    public function catalogLabel(): string
+    {
+        return $this->displayName().' '.$this->concentration.' '.$this->formulation;
     }
 }

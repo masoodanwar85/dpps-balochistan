@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Companies\CheckCompanyPersonRequest;
 use App\Http\Requests\Companies\EndCompanyPersonRequest;
 use App\Http\Requests\Companies\SaveCompanyProductRequest;
+use App\Http\Requests\Companies\SaveCsrRndFileRequest;
 use App\Http\Requests\Companies\StoreCompanyPersonRequest;
 use App\Http\Requests\Documents\SaveDocumentRequest;
 use App\Http\Requests\Portal\ResetPortalPasswordRequest;
@@ -19,6 +20,7 @@ use App\Models\LicenseApplication;
 use App\Models\User;
 use App\Services\Companies\CompanyPeople;
 use App\Services\Companies\CompanyProducts;
+use App\Services\Companies\CsrRndMediaStore;
 use App\Services\Documents\DocumentStore;
 use App\Services\Documents\DocumentWarningException;
 use App\Services\Notifications\InAppNotifications;
@@ -42,6 +44,7 @@ class PortalController extends Controller
         private CompanyPeople $people,
         private CompanyProducts $products,
         private DocumentStore $documents,
+        private CsrRndMediaStore $csrRnd,
         private InAppNotifications $notifications,
     ) {}
 
@@ -168,6 +171,38 @@ class PortalController extends Controller
         );
 
         return ApiResponse::success($this->documents->present($created), null, 201);
+    }
+
+    public function csrRndFiles(Request $request): JsonResponse
+    {
+        $company = $this->access->company($this->actor($request));
+
+        if (! $company->csr && ! $company->rnd) {
+            abort(404);
+        }
+
+        return ApiResponse::success(
+            $this->csrRnd->list($company, $request->query('kind')),
+            [
+                'kinds' => $this->csrRnd->kindsFor($company),
+                'csr' => (bool) $company->csr,
+                'rnd' => (bool) $company->rnd,
+            ],
+        );
+    }
+
+    public function storeCsrRndFile(SaveCsrRndFileRequest $request): JsonResponse
+    {
+        $actor = $this->actor($request);
+        $company = $this->access->company($actor);
+
+        if (! $company->csr && ! $company->rnd) {
+            abort(404);
+        }
+
+        $file = $this->csrRnd->create($company, $request->file('file'), $request->validated(), $actor);
+
+        return ApiResponse::success($this->csrRnd->present($file), status: 201);
     }
 
     public function products(Request $request): JsonResponse

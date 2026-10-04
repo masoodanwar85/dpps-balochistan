@@ -17,14 +17,14 @@ class ProductController
     public function index(Request $request): JsonResponse
     {
         $query = Product::query();
-        ListQuery::search($request, $query, ['generic_name', 'concentration', 'formulation']);
+        ListQuery::search($request, $query, ['generic_name', 'market_name', 'concentration', 'formulation']);
         ListQuery::active($request, $query);
 
         if ($request->filled('filter.category')) {
             $query->where('category', $request->string('filter.category')->value());
         }
 
-        $page = ListQuery::paginate($request, $query, ['generic_name', 'formulation', 'category'], 'generic_name');
+        $page = ListQuery::paginate($request, $query, ['generic_name', 'market_name', 'formulation', 'category'], 'generic_name');
 
         return ApiResponse::success(
             $page->getCollection()->map(fn (Product $product) => $this->payload($product))->values(),
@@ -71,6 +71,8 @@ class ProductController
         return [
             'id' => $product->id,
             'generic_name' => $product->generic_name,
+            'market_name' => $product->market_name,
+            'display_name' => $product->displayName(),
             'concentration' => $product->concentration,
             'formulation' => $product->formulation,
             'category' => $product->category,

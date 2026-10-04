@@ -615,6 +615,32 @@ onMounted(async () => {
             </div>
           </PageSection>
         </div>
+        <PageSection accent="violet" eyebrow="Companies" title="Linked companies">
+          <div class="dpps-table-wrap rounded-none border-0">
+            <table class="dpps-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!(dealer.companies || []).length">
+                  <td class="text-muted-foreground" colspan="2">No companies linked.</td>
+                </tr>
+                <tr
+                  v-for="company in dealer.companies || []"
+                  :key="company.id"
+                  class="dpps-row-link"
+                  @click="router.push(`/companies/${company.id}`)"
+                >
+                  <td class="font-medium">{{ company.company_code }}</td>
+                  <td>{{ company.name }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </PageSection>
         <PageSection v-if="profile.license" accent="violet" eyebrow="License" title="Current license">
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-lg border border-violet-200 bg-violet-50 px-3 py-3">

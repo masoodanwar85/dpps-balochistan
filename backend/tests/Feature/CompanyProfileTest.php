@@ -270,6 +270,7 @@ it('keeps brand names unique within a company (R-14)', function () {
     $other = Company::factory()->create();
     $product = Product::factory()->create([
         'generic_name' => 'Flumioxazin',
+        'market_name' => 'Fiumax Active',
         'concentration' => '60%',
         'formulation' => 'WP',
     ]);
@@ -285,7 +286,10 @@ it('keeps brand names unique within a company (R-14)', function () {
 
     $created->assertCreated()
         ->assertJsonPath('data.status', 'pending')
-        ->assertJsonPath('data.generic_name', 'Flumioxazin');
+        ->assertJsonPath('data.generic_name', 'Flumioxazin')
+        ->assertJsonPath('data.market_name', 'Fiumax Active')
+        ->assertJsonPath('data.display_name', 'Fiumax Active (Flumioxazin)')
+        ->assertJsonPath('data.product_label', 'Fiumax Active (Flumioxazin) 60% WP');
 
     $this->actingAs($officer, 'sanctum')
         ->postJson("/api/v1/companies/{$company->id}/products", array_merge($body, [

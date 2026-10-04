@@ -41,6 +41,8 @@ function companyBody(int $provinceId, array $overrides = []): array
         'province_id' => $provinceId,
         'pcpa_member' => false,
         'croplife_member' => false,
+        'csr' => false,
+        'rnd' => false,
     ], $overrides);
 }
 

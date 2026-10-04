@@ -102,6 +102,8 @@ function blankForm() {
     website: '',
     pcpa_member: false,
     croplife_member: false,
+    csr: false,
+    rnd: false,
     membership_no: '',
   }
 }
@@ -115,13 +117,15 @@ function formFrom(record) {
     incorporation_date: record.incorporation_date ?? '',
     head_office_address: record.head_office_address ?? '',
     city: record.city ?? '',
-    province_id: record.province_id ?? '',
+    province_id: record.province_id != null ? String(record.province_id) : '',
     landline: record.landline ?? '',
     mobile: record.mobile ?? '',
     email: record.email ?? '',
     website: record.website ?? '',
     pcpa_member: !!record.pcpa_member,
     croplife_member: !!record.croplife_member,
+    csr: !!record.csr,
+    rnd: !!record.rnd,
     membership_no: record.membership_no ?? '',
   }
 }
@@ -196,6 +200,11 @@ function openCompany(row) {
 async function openEditor(id) {
   formError.value = ''
   notice.value = ''
+
+  if (provinces.value.length === 0) {
+    await load()
+  }
+
   const { response, payload } = await api(`/api/v1/companies/${id}`)
 
   if (!response.ok) {
@@ -207,6 +216,7 @@ async function openEditor(id) {
 
   company.value = payload.data
   form.value = formFrom(payload.data)
+  provinces.value = payload.meta?.provinces ?? provinces.value
   warnings.value = []
   matches.value = []
   ntnTaken.value = false
@@ -271,6 +281,8 @@ function payload(confirm) {
     pcpa_member: form.value.pcpa_member,
     croplife_member: form.value.croplife_member,
     membership_no: emptyToNull(form.value.membership_no),
+    csr: form.value.csr,
+    rnd: form.value.rnd,
   }
 
   if (confirm) {
@@ -368,16 +380,13 @@ watch(() => route.query.status, () => {
   }
 })
 
-onMounted(() => {
+onMounted(async () => {
   applyListQuery()
+  await load()
 
   if (route.query.edit) {
-    openEditor(route.query.edit)
-
-    return
+    await openEditor(route.query.edit)
   }
-
-  load()
 })
 </script>
 
@@ -523,7 +532,7 @@ onMounted(() => {
             <Label for="province">Province</Label>
             <select id="province" v-model="form.province_id" class="dpps-select" required aria-label="Province" :disabled="!canCreate && !canUpdate">
               <option value="">Choose</option>
-              <option v-for="province in provinces" :key="province.id" :value="province.id">{{ province.name }}</option>
+              <option v-for="province in provinces" :key="province.id" :value="String(province.id)">{{ province.name }}</option>
             </select>
           </div>
           <div class="dpps-field">
@@ -549,6 +558,14 @@ onMounted(() => {
           <label class="flex items-center gap-2 text-sm">
             <input v-model="form.croplife_member" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="CropLife member">
             CropLife
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="form.csr" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="CSR">
+            CSR
+          </label>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="form.rnd" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="R&D">
+            R&amp;D
           </label>
           <div class="dpps-field sm:col-span-2">
             <Label for="membership-no">Membership no</Label>

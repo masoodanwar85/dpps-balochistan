@@ -7,7 +7,7 @@ import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api, ensureCsrf, firstError } from '@/lib/api'
+import { api, ensureCsrf, firstError, upload } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -23,19 +23,8 @@ const canPersons = computed(() => auth.can('persons.view'))
 const canUpload = computed(() => auth.can('documents.upload'))
 const canDownload = computed(() => auth.can('documents.download'))
 const canVerifyDocument = computed(() => auth.can('documents.verify'))
+const canViewDealers = computed(() => auth.can('dealers.view'))
 
-const tabs = [
-  ['overview', 'Overview'],
-  ['people', 'People'],
-  ['staff', 'Tech Staff'],
-  ['premises', 'Premises'],
-  ['products', 'Products'],
-  ['licenses', 'Licenses'],
-  ['applications', 'Applications'],
-  ['documents', 'Documents'],
-  ['portal', 'Portal Users'],
-  ['activity', 'Activity'],
-]
 const laterTabs = ['applications', 'portal']
 const documentCategories = [
   ['', 'All'],
@@ -98,6 +87,9 @@ const documentTypes = ref([])
 const documentCategory = ref('')
 const documentForm = ref(null)
 const historyRows = ref([])
+const csrRndFiles = ref([])
+const csrRndKinds = ref([])
+const csrRndForm = ref(null)
 const loadError = ref('')
 const notice = ref('')
 const formError = ref('')
@@ -123,6 +115,27 @@ const suspendForm = ref({ reason: '', order_no: '', effective_date: '' })
 const companyId = computed(() => route.params.id)
 const canSuspendLicense = computed(() => auth.can('licenses.suspend') && ['active', 'expired'].includes(profile.value?.license?.status))
 const company = computed(() => profile.value?.company)
+const showCsrRnd = computed(() => Boolean(company.value?.csr || company.value?.rnd))
+const tabs = computed(() => {
+  const items = [
+    ['overview', 'Overview'],
+    ['people', 'People'],
+    ['staff', 'Tech Staff'],
+    ['premises', 'Premises'],
+    ['products', 'Products'],
+    ['licenses', 'Licenses'],
+    ['applications', 'Applications'],
+    ['documents', 'Documents'],
+  ]
+
+  if (showCsrRnd.value) {
+    items.push(['csr-rnd', 'CSR/R&D'])
+  }
+
+  items.push(['portal', 'Portal Users'], ['activity', 'Activity'])
+
+  return items
+})
 const officers = computed(() => people.value.filter((row) => row.role !== 'technical_staff'))
 const staff = computed(() => people.value.filter((row) => row.role === 'technical_staff').filter((row) => {
   if (staffFilter.value === 'current') {
@@ -788,11 +801,68 @@ async function loadLicenses() {
   licenseRows.value = payload.data || []
 }
 
+async function loadCsrRnd() {
+  const { response, payload } = await api(`/api/v1/companies/${companyId.value}/csr-rnd`)
+
+  if (response.ok) {
+    csrRndFiles.value = payload.data || []
+    csrRndKinds.value = payload.meta?.kinds || []
+  }
+}
+
+function startCsrRnd() {
+  panel.value = 'csr-rnd'
+  formError.value = ''
+  csrRndForm.value = {
+    kind: csrRndKinds.value[0]?.value || '',
+    title: '',
+    file: null,
+  }
+}
+
+async function saveCsrRnd() {
+  formError.value = ''
+  saving.value = true
+  const body = new FormData()
+  body.append('kind', csrRndForm.value.kind)
+  body.append('title', csrRndForm.value.title)
+  body.append('file', csrRndForm.value.file)
+  const { response, payload } = await upload(`/api/v1/companies/${companyId.value}/csr-rnd`, body)
+  saving.value = false
+
+  if (!response.ok) {
+    formError.value = firstError(payload?.errors) || 'Could not upload this file.'
+
+    return
+  }
+
+  panel.value = ''
+  notice.value = 'CSR/R&D file uploaded.'
+  await loadCsrRnd()
+}
+
+async function viewCsrRnd(row) {
+  const { response, payload } = await api(`/api/v1/csr-rnd-files/${row.id}/download-url`)
+
+  if (!response.ok) {
+    formError.value = firstError(payload?.errors) || 'The file could not be opened.'
+
+    return
+  }
+
+  window.open(payload.data.url, '_blank', 'noopener')
+}
+
 function selectTab(key) {
   tab.value = key
+  panel.value = ''
 
   if (key === 'licenses') {
     loadLicenses()
+  }
+
+  if (key === 'csr-rnd') {
+    loadCsrRnd()
   }
 }
 
@@ -981,6 +1051,37 @@ onMounted(async () => {
             </div>
           </PageSection>
         </div>
+
+        <PageSection accent="sky" eyebrow="Dealers" title="Linked dealers">
+          <div class="dpps-table-wrap rounded-none border-0">
+            <table class="dpps-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Shop</th>
+                  <th>District</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!(profile.dealers || []).length">
+                  <td class="text-muted-foreground" colspan="4">No dealers linked.</td>
+                </tr>
+                <tr
+                  v-for="row in profile.dealers || []"
+                  :key="row.id"
+                  :class="canViewDealers ? 'dpps-row-link' : ''"
+                  @click="canViewDealers && router.push(`/dealers/${row.id}`)"
+                >
+                  <td class="font-medium">{{ row.dealer_code }}</td>
+                  <td>{{ row.shop_name }}</td>
+                  <td>{{ row.district_name || '—' }}</td>
+                  <td><StatusBadge :value="row.status" :label="row.status" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </PageSection>
 
         <PageSection v-if="profile.license" accent="violet" eyebrow="License" title="Current license">
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1372,8 +1473,8 @@ onMounted(async () => {
             <Input id="brand-name" v-model="productForm.brand_name" required aria-label="Brand" />
           </div>
           <div class="dpps-field">
-            <Label for="generic-product">Generic product</Label>
-            <select id="generic-product" v-model="productForm.product_id" class="dpps-select" required aria-label="Generic product">
+            <Label for="generic-product">Product</Label>
+            <select id="generic-product" v-model="productForm.product_id" class="dpps-select" required aria-label="Product">
               <option value="">Choose</option>
               <option v-for="item in productChoices" :key="item.id" :value="item.id">{{ item.label }}</option>
             </select>
@@ -1410,7 +1511,7 @@ onMounted(async () => {
             <thead>
               <tr>
                 <th>Brand</th>
-                <th>Generic / Conc. / Form.</th>
+                <th>Market name / Conc. / Form.</th>
                 <th>DPP Reg</th>
                 <th>Status</th>
               </tr>
@@ -1421,9 +1522,73 @@ onMounted(async () => {
               </tr>
               <tr v-for="row in products" :key="row.id" class="dpps-row-link" @click="canProducts && startProduct(row)">
                 <td class="font-medium">{{ row.brand_name }}</td>
-                <td>{{ [row.generic_name, row.concentration, row.formulation].filter(Boolean).join(' ') || '—' }}</td>
+                <td>{{ row.product_label || '—' }}</td>
                 <td>{{ row.dpp_registration_no || '—' }}</td>
                 <td><StatusBadge :value="row.status" :label="row.status" /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </PageSection>
+      </template>
+
+      <template v-else-if="tab === 'csr-rnd'">
+      <PageSection accent="amber" eyebrow="CSR / R&D" title="CSR/R&D">
+        <template #actions>
+          <Button v-if="canUpload" type="button" size="sm" @click="startCsrRnd">Upload</Button>
+        </template>
+        <p class="text-sm text-muted-foreground">Photos or documents for CSR and R&amp;D. Files stay on record if both flags are later turned off.</p>
+      </PageSection>
+      <PageSection v-if="panel === 'csr-rnd'" accent="amber" eyebrow="CSR / R&D" title="Upload file">
+        <form class="grid max-w-xl gap-3" @submit.prevent="saveCsrRnd">
+          <div class="dpps-field">
+            <Label for="csr-rnd-kind">Type</Label>
+            <select id="csr-rnd-kind" v-model="csrRndForm.kind" class="dpps-select" required aria-label="Type">
+              <option value="">Choose</option>
+              <option v-for="item in csrRndKinds" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+          </div>
+          <div class="dpps-field">
+            <Label for="csr-rnd-title">Title</Label>
+            <Input id="csr-rnd-title" v-model="csrRndForm.title" required aria-label="Title" />
+          </div>
+          <div class="dpps-field">
+            <Label for="csr-rnd-file">File</Label>
+            <input id="csr-rnd-file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="text-sm" required aria-label="File" @change="csrRndForm.file = $event.target.files?.[0] || null">
+            <p class="text-xs text-muted-foreground">PDF, JPG, or PNG.</p>
+          </div>
+          <div class="flex gap-2">
+            <Button type="button" variant="outline" @click="panel = ''">Cancel</Button>
+            <Button type="submit" :disabled="saving">Save</Button>
+          </div>
+        </form>
+      </PageSection>
+      <PageSection accent="slate" content-class="px-0 pt-0 pb-0">
+        <div class="dpps-table-wrap rounded-none border-0">
+          <table class="dpps-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>File</th>
+                <th>Via</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="csrRndFiles.length === 0">
+                <td class="text-muted-foreground" colspan="6">No CSR/R&amp;D files.</td>
+              </tr>
+              <tr v-for="row in csrRndFiles" :key="row.id">
+                <td class="font-medium">{{ row.title }}</td>
+                <td>{{ row.kind_label }}</td>
+                <td>{{ row.original_name }}</td>
+                <td>{{ viaLabel(row.uploaded_via) }}</td>
+                <td class="tabular-nums">{{ displayDate(row.created_at) }}</td>
+                <td>
+                  <Button v-if="canDownload" type="button" variant="outline" size="sm" @click="viewCsrRnd(row)">View</Button>
+                </td>
               </tr>
             </tbody>
           </table>

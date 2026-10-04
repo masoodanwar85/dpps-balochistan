@@ -31,6 +31,12 @@ class SaveProductRequest extends FormRequest
                     ->where('formulation', (string) $this->input('formulation'))
                     ->ignore($productId),
             ],
+            'market_name' => [
+                'required',
+                'string',
+                'max:150',
+                Rule::unique('products', 'market_name')->ignore($productId),
+            ],
             'concentration' => ['required', 'string', 'max:30'],
             'formulation' => ['required', 'string', 'max:30'],
             'category' => ['required', Rule::in([

@@ -70,6 +70,8 @@ class SaveCompanyRequest extends FormRequest
             'pcpa_member' => ['required', 'boolean'],
             'croplife_member' => ['required', 'boolean'],
             'membership_no' => ['nullable', 'string', 'max:50'],
+            'csr' => ['required', 'boolean'],
+            'rnd' => ['required', 'boolean'],
             'confirm_warnings' => ['sometimes', 'boolean'],
             'warning_reason' => ['nullable', 'string', 'max:255'],
         ];

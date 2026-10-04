@@ -250,3 +250,22 @@ B21. Step 23 import decisions:
        or province read from the address is kept. Bad dates, duplicate names
        or NTNs, a CEO CNIC that is missing or invalid, and a staff value of
        "2" or "Nill" stay exceptions.
+
+B22. Overrides design decision D2 (company–dealer relationship not tracked).
+     Dealers link to one or more companies through `company_dealers`. Create
+     and update require at least one non-deleted company. Soft-deleted
+     companies are hidden from the picker. The link has no effect on
+     licenses, applications, import, or the portal.
+
+B23. Overrides design decision D5 for registration and renewal fees only.
+     Settings › Fees (`settings.manage`) edits company and dealer
+     registration and renewal amounts. Changing an amount closes the open
+     period (`effective_to` = day before the new `effective_from`) and
+     inserts a new open row. Late renewal, no technical staff, and
+     restoration rates stay database-only.
+
+B24. Companies gain `csr` and `rnd` booleans (default false), edited on the
+     company create/edit form. When either is true, office and portal show a
+     CSR/R&D area for multiple PDF/JPG/PNG uploads with a free title and
+     type CSR or R&D. Files use a separate `company_csr_rnd_files` store, not
+     `documents`. Turning both flags off hides the tab/menu and keeps files.

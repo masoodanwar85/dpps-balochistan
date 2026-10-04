@@ -36,6 +36,7 @@ class DealerWriter
             $dealer->created_by = $actor->id;
             $dealer->updated_by = $actor->id;
             $dealer->save();
+            $this->syncCompanies($dealer, $data);
 
             $this->logWarning($dealer, $actor, $warnings, $data);
             $this->logger->log(
@@ -67,6 +68,7 @@ class DealerWriter
             $this->fill($dealer, $data, $district);
             $dealer->updated_by = $actor->id;
             $dealer->save();
+            $this->syncCompanies($dealer, $data);
 
             $this->logWarning($dealer, $actor, $warnings, $data);
             $this->logger->log(
@@ -117,6 +119,21 @@ class DealerWriter
             'mobile' => $data['mobile'] ?? null,
             'email' => $data['email'] ?? null,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function syncCompanies(Dealer $dealer, array $data): void
+    {
+        $ids = collect($data['company_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $dealer->companies()->sync($ids);
     }
 
     /**
@@ -203,6 +220,8 @@ class DealerWriter
      */
     private function snapshot(Dealer $dealer): array
     {
+        $dealer->loadMissing('companies');
+
         return [
             'dealer_code' => $dealer->dealer_code,
             'shop_name' => $dealer->shop_name,
@@ -212,6 +231,7 @@ class DealerWriter
             'mobile' => $dealer->mobile,
             'email' => $dealer->email,
             'status' => $dealer->status,
+            'company_ids' => $dealer->companies->pluck('id')->values()->all(),
         ];
     }
 }

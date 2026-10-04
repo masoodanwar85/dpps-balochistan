@@ -577,6 +577,70 @@ Requested after Step 24. Step 24 is still waiting for confirmation.
 - `GET /api/v1/licenses/previous` and `POST /api/v1/licenses/previous`.
 - The import path is unchanged. Dealer sheets still do not create licenses. Those dealer licenses can be entered on this screen.
 
+## Follow-up — Company CSR / R&D
+
+Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- `companies.csr` and `companies.rnd` (boolean, default false) on create/edit.
+- Separate media table `company_csr_rnd_files` (title, kind csr|rnd, PDF/JPG/PNG).
+- Office company profile tab **CSR/R&D** when either flag is on. Portal menu item and page the same way.
+- Clarification B24.
+
+### Notes
+
+- Files are kept if both flags are later turned off; the tab/menu is hidden.
+- Upload uses `documents.upload`; download uses `documents.download`. Not in the verification queue.
+
+## Follow-up — Settings › Fees
+
+Confirmed. Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- Settings › Fees page for company and dealer registration and renewal (`settings.manage`).
+- `GET/PUT /api/v1/fees`. Changing an amount closes the previous open period and starts a new one from the chosen date.
+- General settings note now points to Fees instead of “database only”.
+- Clarification B23 records the partial override of design decision D5.
+
+### Notes
+
+- Late renewal, no technical staff, and restoration fees stay database-only.
+- Unchanged amounts are left alone on Save.
+
+## Follow-up — Dealer–company links
+
+Confirmed. Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- Pivot table `company_dealers` (many-to-many). Create and update require at least one company.
+- Searchable multi-select on the dealer form. Linked companies on the dealer overview. Linked dealers on the company profile overview.
+- Soft-deleted companies are omitted from the picker and from the link payload.
+- Clarification B22 records the override of design decision D2.
+
+### Notes
+
+- Import and factory-created dealers can still exist without companies until an officer edits them.
+- No change to licenses, applications, import, or the portal screens.
+
+## Follow-up — Products Master market name
+
+Confirmed. Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- `products.market_name` VARCHAR(150), required and unique, placed after `generic_name`.
+- Products Master form: Generic name, then Market name. List and every product reference show `Market name (Generic name)` (with concentration and formulation where those were already shown).
+- Company profile Products, portal Products, product dropdowns, and the verification review panel use that display.
+- Existing master rows were backfilled as `generic_name concentration formulation` so the unique column could be applied.
+
+### Notes
+
+- This field is not in the Phase 1 design. Brand name on `company_products` is unchanged.
+- Duplicate market names are rejected. The compound unique on generic + concentration + formulation is unchanged.
+
 ## Follow-up — Certificate QR opens the verification page
 
 Requested after Step 24. Step 24 is still waiting for confirmation.

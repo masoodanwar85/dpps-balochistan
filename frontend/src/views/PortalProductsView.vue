@@ -78,7 +78,7 @@ onMounted(load)
           <Input id="brand" v-model="form.brand_name" required />
         </div>
         <div class="dpps-field">
-          <Label for="generic">Generic</Label>
+          <Label for="generic">Product</Label>
           <select id="generic" v-model="form.product_id" class="dpps-select" required>
             <option value="">Choose</option>
             <option v-for="row in choices" :key="row.id" :value="row.id">{{ row.label }}</option>
@@ -113,7 +113,7 @@ onMounted(load)
           <thead>
             <tr>
               <th>Brand</th>
-              <th>Generic</th>
+              <th>Market name</th>
               <th>DPP reg</th>
               <th>Status</th>
             </tr>
@@ -121,7 +121,7 @@ onMounted(load)
           <tbody>
             <tr v-for="row in rows" :key="row.id">
               <td class="font-medium">{{ row.brand_name }}</td>
-              <td>{{ [row.generic_name, row.concentration, row.formulation].filter(Boolean).join(' ') || '—' }}</td>
+              <td>{{ row.product_label || '—' }}</td>
               <td>{{ row.dpp_registration_no || '—' }}</td>
               <td><StatusBadge :value="row.status" :label="row.status" /></td>
             </tr>

@@ -350,7 +350,7 @@ class VerificationQueue
             'item' => $row->brand_name,
             'submitted_at' => $row->created_at?->toDateString(),
             'fields' => [
-                ['label' => 'Generic', 'value' => $row->product ? $row->product->generic_name.' '.$row->product->concentration.' '.$row->product->formulation : null],
+                ['label' => 'Product', 'value' => $row->product?->catalogLabel()],
                 ['label' => 'Source', 'value' => $row->source],
                 ['label' => 'DPP registration', 'value' => $row->dpp_registration_no],
                 ['label' => 'Sample provided', 'value' => $row->sample_provided ? 'Yes' : 'No'],

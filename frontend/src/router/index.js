@@ -20,6 +20,7 @@ import LoginView from '@/views/LoginView.vue'
 import LookupsView from '@/views/LookupsView.vue'
 import PersonsView from '@/views/PersonsView.vue'
 import ProductsMasterView from '@/views/ProductsMasterView.vue'
+import SettingsFeesView from '@/views/SettingsFeesView.vue'
 import SettingsGeneralView from '@/views/SettingsGeneralView.vue'
 import UsersView from '@/views/UsersView.vue'
 import VerificationView from '@/views/VerificationView.vue'
@@ -29,6 +30,7 @@ import PreviousLicenseView from '@/views/PreviousLicenseView.vue'
 import PortalApplicationsView from '@/views/PortalApplicationsView.vue'
 import PortalCompanyView from '@/views/PortalCompanyView.vue'
 import PortalDashboardView from '@/views/PortalDashboardView.vue'
+import PortalCsrRndView from '@/views/PortalCsrRndView.vue'
 import PortalDocumentsView from '@/views/PortalDocumentsView.vue'
 import PortalProductsView from '@/views/PortalProductsView.vue'
 import PortalStaffView from '@/views/PortalStaffView.vue'
@@ -46,6 +48,7 @@ const views = {
   users: UsersView,
   verification: VerificationView,
   'settings-general': SettingsGeneralView,
+  'settings-fees': SettingsFeesView,
   'settings-lookups': LookupsView,
   persons: PersonsView,
   'settings-products': ProductsMasterView,
@@ -163,6 +166,12 @@ const router = createRouter({
           name: 'portal-documents',
           component: PortalDocumentsView,
           meta: { title: 'Documents', permission: 'portal.access' },
+        },
+        {
+          path: 'portal/csr-rnd',
+          name: 'portal-csr-rnd',
+          component: PortalCsrRndView,
+          meta: { title: 'CSR/R&D', permission: 'portal.access' },
         },
         {
           path: 'portal/products',

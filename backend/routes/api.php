@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\Auth\TwoFactorController;
 use App\Http\Controllers\Api\V1\ChecklistTemplateController;
 use App\Http\Controllers\Api\V1\CompanyAssetController;
 use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\CompanyCsrRndFileController;
 use App\Http\Controllers\Api\V1\CompanyPersonController;
 use App\Http\Controllers\Api\V1\CompanyPremiseController;
 use App\Http\Controllers\Api\V1\CompanyProductController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\Api\V1\DeficiencyLetterController;
 use App\Http\Controllers\Api\V1\DistrictController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\DocumentTypeController;
+use App\Http\Controllers\Api\V1\FeeController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\LicenseController;
@@ -83,6 +85,8 @@ Route::middleware(['auth:sanctum', 'password.changed', 'throttle:api'])->group(f
         Route::get('/portal/documents', [PortalController::class, 'documents']);
         Route::post('/portal/documents', [PortalController::class, 'storeDocument'])->middleware('permission:documents.upload');
         Route::post('/portal/documents/{document}/replace', [PortalController::class, 'replaceDocument'])->middleware('permission:documents.upload');
+        Route::get('/portal/csr-rnd', [PortalController::class, 'csrRndFiles']);
+        Route::post('/portal/csr-rnd', [PortalController::class, 'storeCsrRndFile'])->middleware('permission:documents.upload');
         Route::get('/portal/products', [PortalController::class, 'products']);
         Route::post('/portal/products', [PortalController::class, 'storeProduct'])->middleware('permission:products.manage');
         Route::get('/portal/applications', [PortalController::class, 'applications']);
@@ -194,6 +198,13 @@ Route::middleware(['auth:sanctum', 'password.changed', 'throttle:api'])->group(f
     Route::get('/documents/{document}/history', [DocumentController::class, 'history'])
         ->middleware('permission:companies.view|dealers.view');
 
+    Route::get('/companies/{company}/csr-rnd', [CompanyCsrRndFileController::class, 'index'])
+        ->middleware('permission:companies.view');
+    Route::post('/companies/{company}/csr-rnd', [CompanyCsrRndFileController::class, 'store'])
+        ->middleware('permission:documents.upload');
+    Route::get('/csr-rnd-files/{companyCsrRndFile}/download-url', [CompanyCsrRndFileController::class, 'downloadUrl'])
+        ->middleware('permission:documents.download');
+
     Route::middleware('permission:dealers.view')->group(function () {
         Route::get('/dealers', [DealerController::class, 'index']);
         Route::get('/dealers/{dealer}', [DealerController::class, 'show']);
@@ -296,6 +307,8 @@ Route::middleware(['auth:sanctum', 'password.changed', 'throttle:api'])->group(f
     Route::middleware('permission:settings.manage')->group(function () {
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
+        Route::get('/fees', [FeeController::class, 'index']);
+        Route::put('/fees', [FeeController::class, 'update']);
     });
 
     Route::middleware('permission:lookups.manage')->group(function () {

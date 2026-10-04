@@ -48,6 +48,7 @@ export const navigation = [
     label: 'Settings',
     children: [
       { label: 'General', title: 'Settings › General', to: '/settings/general', name: 'settings-general', permission: 'settings.manage' },
+      { label: 'Fees', title: 'Settings › Fees', to: '/settings/fees', name: 'settings-fees', permission: 'settings.manage' },
       { label: 'Checklists', title: 'Settings › Checklists', to: '/settings/checklists', name: 'settings-checklists', permission: 'checklists.manage' },
       { label: 'Workflow', title: 'Settings › Workflow', to: '/settings/workflow', name: 'settings-workflow', permission: 'workflow.manage' },
       { label: 'Lookups', title: 'Settings › Lookups', to: '/settings/lookups', name: 'settings-lookups', permission: 'lookups.manage' },
@@ -76,7 +77,11 @@ export const navigation = [
   },
 ]
 
-function allowed(item, permissions) {
+function allowed(item, permissions, user = null) {
+  if (item.requiresCsrRnd && !user?.company_csr && !user?.company_rnd) {
+    return false
+  }
+
   if (item.permission) {
     return permissions.includes(item.permission)
   }
@@ -93,20 +98,21 @@ export const portalNavigation = [
   { label: 'Company Info', title: 'Company information', to: '/portal/company', name: 'portal-company', permission: 'portal.access' },
   { label: 'Staff', title: 'Staff', to: '/portal/staff', name: 'portal-staff', permission: 'portal.access' },
   { label: 'Documents', title: 'Documents', to: '/portal/documents', name: 'portal-documents', permission: 'portal.access' },
+  { label: 'CSR/R&D', title: 'CSR/R&D', to: '/portal/csr-rnd', name: 'portal-csr-rnd', permission: 'portal.access', requiresCsrRnd: true },
   { label: 'Products', title: 'Products', to: '/portal/products', name: 'portal-products', permission: 'portal.access' },
   { label: 'Applications', title: 'Applications', to: '/portal/applications', name: 'portal-applications', permission: 'portal.access' },
   { label: 'Users', title: 'Users', to: '/portal/users', name: 'portal-users', permission: 'portal.users.manage' },
 ]
 
-export function visibleNavigation(permissions, source = navigation) {
+export function visibleNavigation(permissions, source = navigation, user = null) {
   return source.flatMap((item) => {
     if (item.children) {
-      const children = item.children.filter((child) => allowed(child, permissions))
+      const children = item.children.filter((child) => allowed(child, permissions, user))
 
       return children.length ? [{ ...item, children }] : []
     }
 
-    return allowed(item, permissions) ? [item] : []
+    return allowed(item, permissions, user) ? [item] : []
   })
 }
 
