@@ -6,9 +6,11 @@ use App\Exports\LicensesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Licenses\ChangeLicenseStatusRequest;
 use App\Http\Requests\Licenses\StorePreviousLicenseRequest;
+use App\Models\Company;
 use App\Models\License;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\Licenses\CompanyCertificate;
 use App\Services\Licenses\LicenseDirectory;
 use App\Services\Licenses\LicenseStatusChanges;
 use App\Services\Licenses\PreviousLicense;
@@ -58,17 +60,45 @@ class LicenseController extends Controller
         return ApiResponse::success($this->directory->present($license));
     }
 
-    public function certificate(License $license, Request $request): JsonResponse
+    public function certificate(License $license, Request $request, CompanyCertificate $certificates): JsonResponse
     {
-        if (! is_string($license->certificate_path) || ! Storage::disk('local')->exists($license->certificate_path)) {
+        $path = $license->certificate_path;
+
+        if (! is_string($path) || $path === '') {
+            abort(404, 'Certificate not found.');
+        }
+
+        $form = $license->licensable_type === 'company' && $request->query('layout') === 'form';
+
+        if ($license->licensable_type === 'company') {
+            $company = Company::withTrashed()->find($license->licensable_id);
+
+            if (! $company instanceof Company || ! is_string($license->verification_token) || $license->verification_token === '') {
+                abort(404, 'Certificate not found.');
+            }
+
+            $path = $form ? substr($path, 0, -4).'-form.pdf' : $path;
+            $stored = $certificates->pdf(
+                $company,
+                $license->license_no,
+                $license->valid_from->format('d-m-Y'),
+                $license->valid_to->format('d-m-Y'),
+                $license->verification_token,
+                $form,
+            );
+
+            if (Storage::disk('local')->put($path, $stored) === false) {
+                abort(404, 'Certificate not found.');
+            }
+        } elseif (! Storage::disk('local')->exists($path)) {
             abort(404, 'Certificate not found.');
         }
 
         $expires = now()->addMinutes(5);
-        $url = Storage::disk('local')->temporaryUrl($license->certificate_path, $expires);
+        $url = Storage::disk('local')->temporaryUrl($path, $expires);
         $this->logger->log(
             'downloaded',
-            'Opened certificate '.$license->license_no,
+            $form ? 'Opened certificate form '.$license->license_no : 'Opened certificate '.$license->license_no,
             'license',
             $license->id,
             $this->actor($request),

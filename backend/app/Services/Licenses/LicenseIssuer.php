@@ -9,15 +9,10 @@ use App\Models\Dealer;
 use App\Models\License;
 use App\Models\LicenseApplication;
 use App\Models\LicenseStatusHistory;
-use App\Models\Setting;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\Notifications\InAppNotifications;
-use App\Support\SettingValue;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -68,17 +63,28 @@ class LicenseIssuer
         }
 
         $token = Str::random(40);
-        $qr = $this->qr($token);
         $number = $this->numbers->next($application);
         $path = 'certificates/'.$token.'.pdf';
-        $pdf = Pdf::loadView('pdfs.license-certificate', [
-            'licenseNo' => $number,
-            'applicant' => $application->applicantName(),
-            'kind' => $application->licensable_type === 'dealer' ? 'Pesticide dealer' : 'Pesticide company',
-            'validFrom' => $dates['valid_from']->format('d-m-Y'),
-            'validTo' => $dates['valid_to']->format('d-m-Y'),
-            'qr' => $qr,
-        ])->output();
+        $company = $application->licensable_type === 'company'
+            ? Company::query()->find($application->licensable_id)
+            : null;
+        $pdf = $company instanceof Company
+            ? app(CompanyCertificate::class)->pdf(
+                $company,
+                $number,
+                $dates['valid_from']->format('d-m-Y'),
+                $dates['valid_to']->format('d-m-Y'),
+                $token,
+                false,
+            )
+            : Pdf::loadView('pdfs.license-certificate', [
+                'licenseNo' => $number,
+                'applicant' => $application->applicantName(),
+                'kind' => 'Pesticide dealer',
+                'validFrom' => $dates['valid_from']->format('d-m-Y'),
+                'validTo' => $dates['valid_to']->format('d-m-Y'),
+                'qr' => $this->qr($token),
+            ])->output();
 
         if (Storage::disk('local')->put($path, $pdf) === false) {
             throw ValidationException::withMessages([
@@ -229,34 +235,6 @@ class LicenseIssuer
 
     private function qr(string $token): string
     {
-        $result = (new Builder(
-            writer: new PngWriter,
-            data: $this->verificationUrl($token),
-            encoding: new Encoding('ISO-8859-1'),
-            size: 180,
-            margin: 8,
-        ))->build();
-
-        return $result->getDataUri();
-    }
-
-    private function verificationUrl(string $token): string
-    {
-        $base = 'https://<domain>/verify/';
-        $setting = Setting::query()->where('key', 'public_verify_base_url')->first();
-
-        if ($setting) {
-            $value = SettingValue::typed($setting);
-
-            if (is_string($value) && trim($value) !== '') {
-                $base = trim($value);
-            }
-        }
-
-        if (str_contains($base, '<domain>')) {
-            $base = rtrim((string) config('app.frontend_url'), '/').'/verify/';
-        }
-
-        return str_ends_with($base, '/') ? $base.$token : $base.'/'.$token;
+        return app(CertificateQr::class)->dataUri($token);
     }
 }

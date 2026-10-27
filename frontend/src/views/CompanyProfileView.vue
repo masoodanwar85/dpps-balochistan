@@ -897,14 +897,15 @@ async function saveSuspend() {
   await loadLicenses()
 }
 
-async function openCertificate() {
+async function openCertificate(layout) {
   const licenseId = profile.value?.license?.id
 
   if (!licenseId) {
     return
   }
 
-  const { response, payload } = await api(`/api/v1/licenses/${licenseId}/certificate`)
+  const query = layout ? `?layout=${layout}` : ''
+  const { response, payload } = await api(`/api/v1/licenses/${licenseId}/certificate${query}`)
 
   if (!response.ok) {
     notice.value = firstError(payload?.errors) || 'The certificate could not be opened.'
@@ -937,8 +938,10 @@ onMounted(async () => {
           <Button v-else type="button" variant="outline" size="sm" disabled>New Application</Button>
           <Button v-if="canSuspendLicense" type="button" variant="outline" size="sm" @click="startSuspend">Suspend</Button>
           <Button v-else type="button" variant="outline" size="sm" disabled>Suspend</Button>
-          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate">Certificate</Button>
+          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate()">Certificate</Button>
           <Button v-else type="button" variant="outline" size="sm" disabled>Certificate</Button>
+          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate('form')">On printed form</Button>
+          <Button v-else type="button" variant="outline" size="sm" disabled>On printed form</Button>
           <Button type="button" variant="outline" size="sm" @click="tab = 'activity'">Activity</Button>
           <Button type="button" variant="outline" size="sm" @click="router.push({ name: 'companies' })">Back</Button>
         </template>

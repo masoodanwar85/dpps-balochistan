@@ -177,9 +177,10 @@ async function submitAction() {
   await load()
 }
 
-async function certificate(row) {
+async function certificate(row, layout) {
   loadError.value = ''
-  const { response, payload } = await api(`/api/v1/licenses/${row.id}/certificate`)
+  const query = layout ? `?layout=${layout}` : ''
+  const { response, payload } = await api(`/api/v1/licenses/${row.id}/certificate${query}`)
 
   if (!response.ok) {
     loadError.value = firstError(payload?.errors) || 'The certificate could not be opened.'
@@ -338,6 +339,7 @@ onMounted(async () => {
                 <div class="flex flex-wrap gap-1">
                   <Button type="button" variant="outline" size="sm" @click="openRow(row)">View</Button>
                   <Button type="button" variant="outline" size="sm" @click="certificate(row)">Certificate</Button>
+                  <Button v-if="row.licensable_type === 'company'" type="button" variant="outline" size="sm" @click="certificate(row, 'form')">On printed form</Button>
                   <Button v-if="canChange(row, 'suspend')" type="button" variant="outline" size="sm" @click="startAction(row, 'suspend')">Suspend</Button>
                   <Button v-if="canChange(row, 'cancel')" type="button" variant="outline" size="sm" @click="startAction(row, 'cancel')">Cancel</Button>
                   <Button v-if="canChange(row, 'restore')" type="button" variant="outline" size="sm" @click="startAction(row, 'restore')">Restore</Button>

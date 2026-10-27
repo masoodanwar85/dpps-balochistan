@@ -121,7 +121,15 @@ it('issues a license when the checks pass and keeps documents incomplete while e
         ->and($issued->json('data.issuance.license_no'))->toBe($licenseNo)
         ->and($issued->json('data.issuance.documents_status'))->toBe('incomplete')
         ->and($company->fresh()->status)->toBe('active')
-        ->and(Storage::disk('local')->exists('certificates/'.License::query()->first()->verification_token.'.pdf'))->toBeTrue();
+        ->and(Storage::disk('local')->exists('certificates/'.License::query()->first()->verification_token.'.pdf'))->toBeTrue()
+        ->and(strlen(Storage::disk('local')->get('certificates/'.License::query()->first()->verification_token.'.pdf')))->toBeGreaterThan(100000);
+
+    $licenseId = License::query()->value('id');
+    $this->actingAs($director, 'sanctum')->getJson("/api/v1/licenses/{$licenseId}/certificate")->assertOk();
+    $this->actingAs($director, 'sanctum')->getJson("/api/v1/licenses/{$licenseId}/certificate?layout=form")->assertOk();
+    expect(Storage::disk('local')->exists('certificates/'.License::query()->value('verification_token').'-form.pdf'))->toBeTrue()
+        ->and(strlen(Storage::disk('local')->get('certificates/'.License::query()->value('verification_token').'-form.pdf')))
+        ->toBeLessThan(strlen(Storage::disk('local')->get('certificates/'.License::query()->value('verification_token').'.pdf')));
 
     expect(CompanyProduct::query()->where('company_id', $company->id)->value('approved_in_license_id'))->not->toBeNull();
 
@@ -307,8 +315,7 @@ it('limits a district officer to dealer licenses in assigned districts and still
 it('puts the site address in the certificate qr when the domain placeholder is still set', function () {
     config(['app.frontend_url' => 'http://dpps.test:5173']);
 
-    $url = (new ReflectionMethod(App\Services\Licenses\LicenseIssuer::class, 'verificationUrl'))
-        ->invoke(app(App\Services\Licenses\LicenseIssuer::class), 'abc123');
+    $url = app(App\Services\Licenses\CertificateQr::class)->url('abc123');
 
     expect($url)->toBe('http://dpps.test:5173/verify/abc123');
 });
@@ -318,8 +325,7 @@ it('keeps a real public verification url in the certificate qr', function () {
         'value' => 'https://dpp.example.test/verify/',
     ]);
 
-    $url = (new ReflectionMethod(App\Services\Licenses\LicenseIssuer::class, 'verificationUrl'))
-        ->invoke(app(App\Services\Licenses\LicenseIssuer::class), 'abc123');
+    $url = app(App\Services\Licenses\CertificateQr::class)->url('abc123');
 
     expect($url)->toBe('https://dpp.example.test/verify/abc123');
 });

@@ -658,3 +658,21 @@ Requested after Step 24. Step 24 is still waiting for confirmation.
 - A phone cannot open `localhost` on this computer. For a scan from a phone, set `FRONTEND_URL` in `backend/.env` to an address the phone can reach, then download the certificate again.
 - Browser check: `http://localhost:5173/verify/rew27oetbYtaS9XMbhrJIHqRNc2whNvmvSwyBu6j` stays on that page and shows Daily Web Solutions, `DPP/C/2026/0001`, active, 29-09-2026 to 28-09-2027. An unknown code stays on the page and shows "Certificate not found." `/companies` while signed out still returns to login.
 
+## Follow-up — Company certificate on the printed form
+
+Requested after Step 24. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- Company Certificate now fills the registration sheet: company name, license start and end, head office address, email, mobile, and the license number. The QR code is at the bottom center of page 1.
+- Certificate opens the full two-page PDF (the artwork plus those details). On printed form opens one page with only the details, for the A4 landscape sheets that are already printed.
+- Both buttons are on the company profile and on a company row in Licenses. Dealer certificates are unchanged.
+- The sentence stays "Is renewed and licensed" for a new license as well.
+
+### Notes
+
+- Print landscape, actual size, 100%. Fit-to-page shifts the details off the blanks.
+- The license number replaces the sample "DPPB/ No/Year", so the corner reads "Registration # DPP/C/2026/0001". On a sheet where "DPPB/" is already inked, that number prints over those letters.
+- A long email is set small so it stays between "Email:" and "(Contact #.)".
+- Page 2 is the terms and is included only on the full certificate.
+
