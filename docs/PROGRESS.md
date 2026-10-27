@@ -675,4 +675,5 @@ Requested after Step 24. Step 24 is still waiting for confirmation.
 - The license number replaces the sample "DPPB/ No/Year", so the corner reads "Registration # DPP/C/2026/0001". On a sheet where "DPPB/" is already inked, that number prints over those letters.
 - A long email is set small so it stays between "Email:" and "(Contact #.)".
 - Page 2 is the terms and is included only on the full certificate.
+- A company license that was recorded without a stored certificate file can still be printed. The form is built from the company and the license.
 

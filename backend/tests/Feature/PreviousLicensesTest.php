@@ -72,6 +72,12 @@ it('records a previous company license up to the last day of this year', functio
         ->and($license->status)->toBe('active')
         ->and($company->fresh()->status)->toBeIn(['active', 'expiring'])
         ->and(ActivityLog::query()->where('action', 'created')->where('subject_type', 'license')->where('subject_id', $license->id)->exists())->toBeTrue();
+
+    $form = $this->actingAs($director, 'sanctum')
+        ->getJson('/api/v1/licenses/'.$license->id.'/certificate?layout=form')
+        ->assertOk();
+    expect($form->json('data.url'))->toContain('-form.pdf')
+        ->and($license->fresh()->certificate_path)->toBeNull();
 });
 
 it('rejects an end date after this year and a repeated license number', function () {

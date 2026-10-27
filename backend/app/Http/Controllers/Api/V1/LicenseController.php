@@ -62,27 +62,30 @@ class LicenseController extends Controller
 
     public function certificate(License $license, Request $request, CompanyCertificate $certificates): JsonResponse
     {
-        $path = $license->certificate_path;
-
-        if (! is_string($path) || $path === '') {
-            abort(404, 'Certificate not found.');
-        }
-
         $form = $license->licensable_type === 'company' && $request->query('layout') === 'form';
 
         if ($license->licensable_type === 'company') {
             $company = Company::withTrashed()->find($license->licensable_id);
 
-            if (! $company instanceof Company || ! is_string($license->verification_token) || $license->verification_token === '') {
+            if (! $company instanceof Company) {
                 abort(404, 'Certificate not found.');
             }
 
-            $path = $form ? substr($path, 0, -4).'-form.pdf' : $path;
+            if (! is_string($license->verification_token) || $license->verification_token === '') {
+                $license->verification_token = (string) str()->random(40);
+                $license->updated_by = $this->actor($request)->id;
+                $license->save();
+            }
+
+            $base = is_string($license->certificate_path) && $license->certificate_path !== ''
+                ? $license->certificate_path
+                : 'certificates/'.$license->verification_token.'.pdf';
+            $path = $form ? substr($base, 0, -4).'-form.pdf' : $base;
             $stored = $certificates->pdf(
                 $company,
                 $license->license_no,
-                $license->valid_from->format('d-m-Y'),
-                $license->valid_to->format('d-m-Y'),
+                $license->valid_from?->format('d-m-Y') ?? '',
+                $license->valid_to?->format('d-m-Y') ?? '',
                 $license->verification_token,
                 $form,
             );
@@ -90,8 +93,12 @@ class LicenseController extends Controller
             if (Storage::disk('local')->put($path, $stored) === false) {
                 abort(404, 'Certificate not found.');
             }
-        } elseif (! Storage::disk('local')->exists($path)) {
-            abort(404, 'Certificate not found.');
+        } else {
+            $path = $license->certificate_path;
+
+            if (! is_string($path) || $path === '' || ! Storage::disk('local')->exists($path)) {
+                abort(404, 'Certificate not found.');
+            }
         }
 
         $expires = now()->addMinutes(5);
