@@ -665,8 +665,8 @@ Requested after Step 24. Step 24 is still waiting for confirmation.
 ### What was built
 
 - Company Certificate now fills the registration sheet: company name, license start and end, head office address, email, mobile, and the license number. The QR code is at the bottom center of page 1.
-- Certificate opens the full two-page PDF (the artwork plus those details). On printed form opens one page with only the details, for the A4 landscape sheets that are already printed.
-- Both buttons are on the company profile and on a company row in Licenses. Dealer certificates are unchanged.
+- Certificate opens the full two-page PDF (the artwork plus those details).
+- The button is on the company profile and on a company row in Licenses.
 - The sentence stays "Is renewed and licensed" for a new license as well.
 
 ### Notes
@@ -674,6 +674,49 @@ Requested after Step 24. Step 24 is still waiting for confirmation.
 - Print landscape, actual size, 100%. Fit-to-page shifts the details off the blanks.
 - The license number replaces the sample "DPPB/ No/Year", so the corner reads "Registration # DPP/C/2026/0001". On a sheet where "DPPB/" is already inked, that number prints over those letters.
 - A long email is set small so it stays between "Email:" and "(Contact #.)".
-- Page 2 is the terms and is included only on the full certificate.
-- A company license that was recorded without a stored certificate file can still be printed. The form is built from the company and the license.
+- Page 2 is the terms.
+- A company license that was recorded without a stored certificate file can still be printed. The certificate is built from the company and the license.
+
+## Follow-up — Dealer certificate on Form 15
+
+Requested after the company certificate. Step 24 is still waiting for confirmation.
+
+### What was built
+
+- Dealer Certificate fills the Form 15 sheet: registration number, certificate date, owner name, father name, CNIC, district, issue date, expiry date, shop address, mobile, and the application number and date when the license came from an application. The owner photo is placed in the photo box when a photo is on file. The QR code is at the bottom center of page 1, between the two signature blocks.
+- Certificate opens the full two-page PDF, including the Urdu terms on page 2.
+- The button is on the dealer profile and on a dealer row in Licenses. A dealer license recorded without a stored file can still be printed.
+- A new dealer license stores this certificate when it is issued. The words already printed on the form, including "has been Renewed" and "Is registered and licensed", are left as they are.
+
+### Notes
+
+- Print landscape, actual size, 100%. Fit-to-page shifts the details off the blanks.
+- The registration number is printed after "Registration No." and the sample "/R1" is covered, so a renewal suffix is not printed twice.
+- The diary number before "D/No." is left blank. That gap is too narrow for a diary number.
+- The district name replaces the word "District" in the license sentence and "Quetta" under Deputy Director. A very long district name can crowd the word "from".
+- Page 2 is the Urdu terms.
+
+## Follow-up — Printed-form certificate removed
+
+The details-only “On printed form” download was removed. Certificate prints the full sheet, artwork and details, on a blank page.
+
+## Follow-up — Dealer certificate rebuilt as separate pieces
+
+The dealer Form 15 is no longer one flattened picture with white boxes over the blanks. Page 1 is the frame, the pale watermark, the government seal, the roundel, and real text, so a field can be moved on its own. Page 2 is still the Urdu terms sheet. The company certificate is unchanged.
+
+## Follow-up — Dealer certificate matches the supplied HTML
+
+The dealer certificate now follows `dealer-certificate.html`: ladybug border, both logos, curved title, the 2026 wording, and the Urdu terms on page 2. Licence details are still filled from the dealer record. The QR code sits to the right of the photo. A dealer photo (JPG or PNG) can be saved on the dealer form and profile, and that photo prints in the certificate box. The public verification page shows the current dealer owner as name S/O father name. The company certificate is unchanged.
+
+## Follow-up — License dispatch number
+
+A license needs a dispatch number when it is issued or recorded as a previous license. The dealer certificate prints it at the top left, immediately after D/No. Older licenses and imports can stay blank. The company certificate has no D/No. line, so the number is stored and shown on the license list and the company or dealer profile.
+
+## Follow-up — Company Form C/D number
+
+Membership number is removed from the company record. Form C/D number is optional, as is the incorporation number, so a company can have either number, both, or neither. PCPA and CropLife stay as yes/no flags. Numbers already stored in membership number are deleted.
+
+## Follow-up — Company license number
+
+A new company registration is numbered `DPPB/0048/2024` (serial, then the year it is registered). A renewal of that license keeps the same serial and year and adds the counter: `DPPB/0048/2024/R1`, then `R2`. Dealer numbers are unchanged. A renewal of a license that is not already in this form still receives a new serial for the current year. Numbers already issued are left as they are.
 

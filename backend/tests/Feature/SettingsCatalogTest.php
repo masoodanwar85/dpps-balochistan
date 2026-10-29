@@ -45,8 +45,8 @@ it('returns only editable settings and a license number preview', function () {
     $company = collect($response->json('data'))->firstWhere('key', 'company_license_no_pattern');
     $application = collect($response->json('data'))->firstWhere('key', 'application_no_pattern');
 
-    expect($company['value'])->toBe('DPP/C/{YYYY}/{SERIAL:4}{RENEWAL}')
-        ->and($company['preview'])->toBe('DPP/C/'.now()->year.'/0046/R1')
+    expect($company['value'])->toBe('DPPB/{SERIAL:4}/{YYYY}{RENEWAL}')
+        ->and($company['preview'])->toBe('DPPB/0046/'.now()->year.'/R1')
         ->and($application['preview'])->toBe('APP-C-'.now()->year.'-0046')
         ->and(collect($response->json('data'))->firstWhere('key', 'enforce_document_requirements')['value'])->toBeFalse();
 });
@@ -80,7 +80,7 @@ it('updates editable settings and records each change', function () {
             'settings' => [
                 'enforce_document_requirements' => true,
                 'renewal_window_days' => 45,
-                'company_license_no_pattern' => 'DPP/C/{YYYY}/{SERIAL:4}{RENEWAL}',
+                'company_license_no_pattern' => 'DPPB/{SERIAL:4}/{YYYY}{RENEWAL}',
             ],
         ]);
 

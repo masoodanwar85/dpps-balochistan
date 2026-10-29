@@ -49,6 +49,7 @@ onMounted(async () => {
         <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Legal type</dt><dd class="font-medium">{{ labels[data.company.legal_type] || data.company.legal_type }}</dd></div>
         <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">NTN</dt><dd class="font-medium">{{ data.company.ntn || '—' }}</dd></div>
         <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Incorporation</dt><dd class="font-medium">{{ data.company.incorporation_no || '—' }} · {{ displayDate(data.company.incorporation_date) }}</dd></div>
+        <div class="rounded-lg border bg-muted/30 px-3 py-2"><dt class="text-xs text-muted-foreground">Form C/D no</dt><dd class="font-medium">{{ data.company.form_cd_no || '—' }}</dd></div>
         <div class="rounded-lg border bg-muted/30 px-3 py-2 sm:col-span-2">
           <dt class="text-xs text-muted-foreground">Head office</dt>
           <dd class="font-medium">

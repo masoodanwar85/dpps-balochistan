@@ -1,0 +1,15 @@
+{
+    "cert arial": {
+        "normal": "\/Users\/masoodanwar85\/Projects\/dpp-management-system-v2\/backend\/storage\/fonts\/cert_arial_normal_b17c6bf96db6ea042a8ab802fdf07477",
+        "bold": "\/Users\/masoodanwar85\/Projects\/dpp-management-system-v2\/backend\/storage\/fonts\/cert_arial_bold_fdb7771072c182ae9087d06546df8706",
+        "italic": "\/Users\/masoodanwar85\/Projects\/dpp-management-system-v2\/backend\/storage\/fonts\/cert_arial_italic_52ea064ae8b104995175e00e212dd264",
+        "bold_italic": "cert_arial_bold_italic_2b90f8cd8b20a44cd7de779f7a911265"
+    },
+    "cert black": {
+        "normal": "cert_black_normal_f15bf6f755239c9553ca14c322459256"
+    },
+    "cert times": {
+        "normal": "\/Users\/masoodanwar85\/Projects\/dpp-management-system-v2\/backend\/storage\/fonts\/cert_times_normal_95e0d2aaa78bc743e20d94e7ee9ec1dd",
+        "bold": "cert_times_bold_d43f86f9bc4c0f1a450914148db99cf0"
+    }
+}

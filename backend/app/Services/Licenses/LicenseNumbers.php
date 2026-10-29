@@ -14,6 +14,12 @@ class LicenseNumbers
 {
     public function preview(LicenseApplication $application): string
     {
+        $continued = $this->continuedNumber($application);
+
+        if ($continued !== null) {
+            return $continued;
+        }
+
         $context = $this->context($application);
         $serial = $this->lastSerial($context['entity'], $context['district_id'], $context['year']) + 1;
 
@@ -22,6 +28,12 @@ class LicenseNumbers
 
     public function next(LicenseApplication $application): string
     {
+        $continued = $this->continuedNumber($application);
+
+        if ($continued !== null) {
+            return $continued;
+        }
+
         $context = $this->context($application);
 
         return DB::transaction(function () use ($context) {
@@ -95,7 +107,7 @@ class LicenseNumbers
     {
         $fallback = $key === 'dealer_license_no_pattern'
             ? 'DPP/D/{DISTRICT}/{YYYY}/{SERIAL:4}{RENEWAL}'
-            : 'DPP/C/{YYYY}/{SERIAL:4}{RENEWAL}';
+            : 'DPPB/{SERIAL:4}/{YYYY}{RENEWAL}';
         $setting = Setting::query()->where('key', $key)->first();
         $pattern = $fallback;
 
@@ -114,6 +126,29 @@ class LicenseNumbers
         }
 
         return $pattern;
+    }
+
+    private function continuedNumber(LicenseApplication $application): ?string
+    {
+        if ($application->licensable_type !== 'company' || $application->application_type !== 'renewal') {
+            return null;
+        }
+
+        $previous = $application->previous_license_id
+            ? License::query()->find($application->previous_license_id)
+            : null;
+
+        if (! $previous instanceof License) {
+            return null;
+        }
+
+        $base = preg_replace('/\/R\d+$/', '', $previous->license_no);
+
+        if (! is_string($base) || preg_match('/^DPPB\/\d+\/\d{4}$/', $base) !== 1) {
+            return null;
+        }
+
+        return $base.'/R'.(((int) $previous->renewal_count) + 1);
     }
 
     private function renewal(LicenseApplication $application): string

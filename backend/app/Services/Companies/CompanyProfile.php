@@ -92,6 +92,7 @@ class CompanyProfile
             'ntn' => $company->ntn,
             'incorporation_no' => $company->incorporation_no,
             'incorporation_date' => $company->incorporation_date?->toDateString(),
+            'form_cd_no' => $company->form_cd_no,
             'head_office_address' => $company->head_office_address,
             'city' => $company->city,
             'province_id' => $company->province_id,
@@ -102,7 +103,6 @@ class CompanyProfile
             'website' => $company->website,
             'pcpa_member' => $company->pcpa_member,
             'croplife_member' => $company->croplife_member,
-            'membership_no' => $company->membership_no,
             'csr' => $company->csr,
             'rnd' => $company->rnd,
             'status' => $company->status,
@@ -121,6 +121,7 @@ class CompanyProfile
         return [
             'id' => $license->id,
             'license_no' => $license->license_no,
+            'dispatch_no' => $license->dispatch_no,
             'license_kind' => $license->license_kind,
             'status' => $license->status,
             'valid_from' => $license->valid_from?->toDateString(),

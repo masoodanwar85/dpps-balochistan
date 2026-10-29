@@ -8,7 +8,7 @@ import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api, ensureCsrf, firstError } from '@/lib/api'
+import { api, ensureCsrf, firstError, upload } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -18,6 +18,7 @@ const canCreate = computed(() => auth.can('dealers.create'))
 const canUpdate = computed(() => auth.can('dealers.update'))
 const canDelete = computed(() => auth.can('dealers.delete'))
 const canExport = computed(() => auth.can('exports.run'))
+const photoFile = ref(null)
 
 const statuses = [
   ['', 'All'],
@@ -148,6 +149,7 @@ function applyFilters() {
 function startCreate() {
   dealer.value = null
   form.value = blankForm()
+  photoFile.value = null
   warnings.value = []
   warningReason.value = ''
   deleteReason.value = ''
@@ -185,6 +187,7 @@ async function openEditor(id) {
     email: row.email || '',
     company_ids: row.company_ids || [],
   }
+  photoFile.value = null
   warnings.value = []
   warningReason.value = ''
   deleteReason.value = ''
@@ -240,7 +243,22 @@ async function save(confirm = false) {
   }
 
   notice.value = ''
-  await router.push(`/dealers/${payload.data.id}`)
+  const id = payload.data.id
+
+  if (photoFile.value) {
+    const body = new FormData()
+    body.append('photo', photoFile.value)
+    const uploaded = await upload(`/api/v1/dealers/${id}/photo`, body)
+
+    if (!uploaded.response.ok) {
+      dealer.value = payload.data
+      formError.value = firstError(uploaded.payload?.errors) || 'The dealer was saved, but the photo was not.'
+
+      return
+    }
+  }
+
+  await router.push(`/dealers/${id}`)
 }
 
 async function removeDealer() {
@@ -436,6 +454,11 @@ onMounted(async () => {
           <div class="dpps-field">
             <Label for="shop-lng">GPS longitude</Label>
             <Input id="shop-lng" v-model="form.gps_lng" aria-label="GPS longitude" />
+          </div>
+          <div class="dpps-field sm:col-span-2">
+            <Label for="shop-photo">Photo</Label>
+            <input id="shop-photo" type="file" accept="image/jpeg,image/png" class="text-sm" aria-label="Dealer photo" @change="photoFile = $event.target.files?.[0] || null">
+            <p class="mt-1 text-xs text-muted-foreground">JPG or PNG. This photo prints on the certificate.</p>
           </div>
         </div>
         <Alert v-for="warning in warnings" :key="warning" class="mt-4">

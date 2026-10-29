@@ -20,13 +20,13 @@ class SaveCompanyRequest extends FormRequest
     {
         $merged = [];
 
-        foreach (['name', 'ntn', 'incorporation_no', 'head_office_address', 'city', 'landline', 'mobile', 'email', 'website', 'membership_no'] as $field) {
+        foreach (['name', 'ntn', 'incorporation_no', 'form_cd_no', 'head_office_address', 'city', 'landline', 'mobile', 'email', 'website'] as $field) {
             if ($this->exists($field) && is_string($this->input($field))) {
                 $merged[$field] = trim($this->input($field));
             }
         }
 
-        foreach (['ntn', 'incorporation_no', 'incorporation_date', 'landline', 'mobile', 'email', 'website', 'membership_no'] as $field) {
+        foreach (['ntn', 'incorporation_no', 'form_cd_no', 'incorporation_date', 'landline', 'mobile', 'email', 'website'] as $field) {
             $value = $merged[$field] ?? $this->input($field);
 
             if ($value === '') {
@@ -53,6 +53,7 @@ class SaveCompanyRequest extends FormRequest
             'legal_type' => ['required', Rule::in(['private_ltd', 'public_ltd', 'partnership', 'sole_proprietor', 'other'])],
             'ntn' => ['nullable', 'string', 'max:20', Rule::unique('companies', 'ntn')->ignore($companyId)],
             'incorporation_no' => ['nullable', 'string', 'max:50'],
+            'form_cd_no' => ['nullable', 'string', 'max:50'],
             'incorporation_date' => ['nullable', 'date'],
             'head_office_address' => ['required', 'string'],
             'city' => ['required', 'string', 'max:100'],
@@ -69,7 +70,6 @@ class SaveCompanyRequest extends FormRequest
             'website' => ['nullable', 'string', 'max:200'],
             'pcpa_member' => ['required', 'boolean'],
             'croplife_member' => ['required', 'boolean'],
-            'membership_no' => ['nullable', 'string', 'max:50'],
             'csr' => ['required', 'boolean'],
             'rnd' => ['required', 'boolean'],
             'confirm_warnings' => ['sometimes', 'boolean'],

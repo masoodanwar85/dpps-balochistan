@@ -68,23 +68,23 @@ class LicenseIssuer
         $company = $application->licensable_type === 'company'
             ? Company::query()->find($application->licensable_id)
             : null;
-        $pdf = $company instanceof Company
-            ? app(CompanyCertificate::class)->pdf(
-                $company,
-                $number,
-                $dates['valid_from']->format('d-m-Y'),
-                $dates['valid_to']->format('d-m-Y'),
-                $token,
-                false,
-            )
-            : Pdf::loadView('pdfs.license-certificate', [
+        $dealer = $application->licensable_type === 'dealer'
+            ? Dealer::query()->find($application->licensable_id)
+            : null;
+        $from = $dates['valid_from']->format('d-m-Y');
+        $to = $dates['valid_to']->format('d-m-Y');
+        $pdf = match (true) {
+            $company instanceof Company => app(CompanyCertificate::class)->pdf($company, $number, $from, $to, $token),
+            $dealer instanceof Dealer => app(DealerCertificate::class)->pdf($dealer, $application, $number, $from, $to, $token, (string) $data['dispatch_no']),
+            default => Pdf::loadView('pdfs.license-certificate', [
                 'licenseNo' => $number,
                 'applicant' => $application->applicantName(),
                 'kind' => 'Pesticide dealer',
-                'validFrom' => $dates['valid_from']->format('d-m-Y'),
-                'validTo' => $dates['valid_to']->format('d-m-Y'),
+                'validFrom' => $from,
+                'validTo' => $to,
                 'qr' => $this->qr($token),
-            ])->output();
+            ])->output(),
+        };
 
         if (Storage::disk('local')->put($path, $pdf) === false) {
             throw ValidationException::withMessages([
@@ -98,6 +98,7 @@ class LicenseIssuer
                 $outstanding = $this->readiness->outstandingRequired($application);
                 $license = License::query()->create([
                     'license_no' => $number,
+                    'dispatch_no' => $data['dispatch_no'],
                     'licensable_type' => $application->licensable_type,
                     'licensable_id' => $application->licensable_id,
                     'application_id' => $application->id,

@@ -92,6 +92,7 @@ function blankForm() {
     legal_type: 'private_ltd',
     ntn: '',
     incorporation_no: '',
+    form_cd_no: '',
     incorporation_date: '',
     head_office_address: '',
     city: '',
@@ -104,7 +105,6 @@ function blankForm() {
     croplife_member: false,
     csr: false,
     rnd: false,
-    membership_no: '',
   }
 }
 
@@ -114,6 +114,7 @@ function formFrom(record) {
     legal_type: record.legal_type ?? 'private_ltd',
     ntn: record.ntn ?? '',
     incorporation_no: record.incorporation_no ?? '',
+    form_cd_no: record.form_cd_no ?? '',
     incorporation_date: record.incorporation_date ?? '',
     head_office_address: record.head_office_address ?? '',
     city: record.city ?? '',
@@ -126,7 +127,6 @@ function formFrom(record) {
     croplife_member: !!record.croplife_member,
     csr: !!record.csr,
     rnd: !!record.rnd,
-    membership_no: record.membership_no ?? '',
   }
 }
 
@@ -270,6 +270,7 @@ function payload(confirm) {
     legal_type: form.value.legal_type,
     ntn: emptyToNull(form.value.ntn),
     incorporation_no: emptyToNull(form.value.incorporation_no),
+    form_cd_no: emptyToNull(form.value.form_cd_no),
     incorporation_date: emptyToNull(form.value.incorporation_date),
     head_office_address: form.value.head_office_address,
     city: form.value.city,
@@ -280,7 +281,6 @@ function payload(confirm) {
     website: emptyToNull(form.value.website),
     pcpa_member: form.value.pcpa_member,
     croplife_member: form.value.croplife_member,
-    membership_no: emptyToNull(form.value.membership_no),
     csr: form.value.csr,
     rnd: form.value.rnd,
   }
@@ -517,6 +517,10 @@ onMounted(async () => {
             <Input id="incorporation-no" v-model="form.incorporation_no" :readonly="!canCreate && !canUpdate" />
           </div>
           <div class="dpps-field">
+            <Label for="form-cd-no">Form C/D no</Label>
+            <Input id="form-cd-no" v-model="form.form_cd_no" maxlength="50" :readonly="!canCreate && !canUpdate" />
+          </div>
+          <div class="dpps-field">
             <Label for="incorporation-date">Incorporation date</Label>
             <Input id="incorporation-date" v-model="form.incorporation_date" type="date" :readonly="!canCreate && !canUpdate" />
           </div>
@@ -567,10 +571,6 @@ onMounted(async () => {
             <input v-model="form.rnd" type="checkbox" :disabled="!canCreate && !canUpdate" aria-label="R&D">
             R&amp;D
           </label>
-          <div class="dpps-field sm:col-span-2">
-            <Label for="membership-no">Membership no</Label>
-            <Input id="membership-no" v-model="form.membership_no" :readonly="!canCreate && !canUpdate" />
-          </div>
         </div>
 
         <div v-if="warnings.length" class="mt-4 grid gap-2">

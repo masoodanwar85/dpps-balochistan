@@ -17,6 +17,7 @@ class License extends Model
      */
     protected $fillable = [
         'license_no',
+        'dispatch_no',
         'licensable_type',
         'licensable_id',
         'application_id',

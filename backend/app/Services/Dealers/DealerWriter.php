@@ -7,7 +7,9 @@ use App\Models\District;
 use App\Models\Tehsil;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class DealerWriter
@@ -83,6 +85,57 @@ class DealerWriter
 
             return $dealer;
         });
+    }
+
+    public function savePhoto(Dealer $dealer, UploadedFile $file, User $actor): Dealer
+    {
+        $ext = strtolower($file->getClientOriginalExtension()) === 'png' ? 'png' : 'jpg';
+        $path = 'dealers/'.$dealer->id.'/photo.'.$ext;
+        $disk = Storage::disk('local');
+
+        if (is_string($dealer->photo_path) && $dealer->photo_path !== '' && $dealer->photo_path !== $path) {
+            $disk->delete($dealer->photo_path);
+        }
+
+        $disk->putFileAs('dealers/'.$dealer->id, $file, 'photo.'.$ext);
+        $before = $dealer->photo_path;
+        $dealer->photo_path = $path;
+        $dealer->updated_by = $actor->id;
+        $dealer->save();
+        $this->logger->log(
+            'updated',
+            'Updated photo for dealer '.$dealer->shop_name,
+            'dealer',
+            $dealer->id,
+            $actor,
+            ['photo_path' => $before],
+            ['photo_path' => $path],
+        );
+
+        return $dealer->refresh();
+    }
+
+    public function clearPhoto(Dealer $dealer, User $actor): Dealer
+    {
+        if (is_string($dealer->photo_path) && $dealer->photo_path !== '') {
+            Storage::disk('local')->delete($dealer->photo_path);
+        }
+
+        $before = $dealer->photo_path;
+        $dealer->photo_path = null;
+        $dealer->updated_by = $actor->id;
+        $dealer->save();
+        $this->logger->log(
+            'updated',
+            'Removed photo for dealer '.$dealer->shop_name,
+            'dealer',
+            $dealer->id,
+            $actor,
+            ['photo_path' => $before],
+            ['photo_path' => null],
+        );
+
+        return $dealer->refresh();
     }
 
     public function delete(Dealer $dealer, string $reason, User $actor): void
@@ -230,6 +283,7 @@ class DealerWriter
             'business_address' => $dealer->business_address,
             'mobile' => $dealer->mobile,
             'email' => $dealer->email,
+            'photo_path' => $dealer->photo_path,
             'status' => $dealer->status,
             'company_ids' => $dealer->companies->pluck('id')->values()->all(),
         ];

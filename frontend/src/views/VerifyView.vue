@@ -63,6 +63,10 @@ onMounted(async () => {
             <p class="text-xs font-medium text-emerald-800">Name</p>
             <p class="mt-1 font-semibold text-emerald-950">{{ record.name }}</p>
           </div>
+          <div v-if="record.owner_name" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 sm:col-span-2">
+            <p class="text-xs font-medium text-emerald-800">Dealer</p>
+            <p class="mt-1 font-semibold text-emerald-950">{{ record.owner_name }}<template v-if="record.father_name"> S/O {{ record.father_name }}</template></p>
+          </div>
           <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
             <p class="text-xs font-medium text-slate-600">Type</p>
             <p class="mt-1 font-semibold text-slate-950">{{ record.type }}</p>

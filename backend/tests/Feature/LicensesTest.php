@@ -12,6 +12,7 @@ use App\Models\License;
 use App\Models\Person;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Services\Licenses\CertificateQr;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Database\Seeders\SettingsSeeder;
 use Database\Seeders\WorkflowStageSeeder;
@@ -89,10 +90,10 @@ it('issues a license when the checks pass and keeps documents incomplete while e
     $company = Company::factory()->create();
     $id = reachIssuance($this, $director, $company);
 
-    $this->actingAs($officer, 'sanctum')->postJson("/api/v1/applications/{$id}/issue")->assertForbidden();
+    $this->actingAs($officer, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])->assertForbidden();
 
     $this->actingAs($director, 'sanctum')
-        ->postJson("/api/v1/applications/{$id}/issue")
+        ->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])
         ->assertStatus(422)
         ->assertJsonPath('errors.issuance.0', 'The company does not have the minimum verified technical staff.');
 
@@ -114,10 +115,11 @@ it('issues a license when the checks pass and keeps documents incomplete while e
         ->and($preview->json('data.documents_status'))->toBe('incomplete')
         ->and($preview->json('data.blockers'))->toBe([]);
 
-    $issued = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue")->assertOk();
-    $licenseNo = 'DPP/C/'.now()->year.'/0001';
+    $issued = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])->assertOk();
+    $licenseNo = 'DPPB/0001/'.now()->year;
 
-    expect($issued->json('data.application.status'))->toBe('issued')
+    expect(License::query()->value('dispatch_no'))->toBe('D-14')
+        ->and($issued->json('data.application.status'))->toBe('issued')
         ->and($issued->json('data.issuance.license_no'))->toBe($licenseNo)
         ->and($issued->json('data.issuance.documents_status'))->toBe('incomplete')
         ->and($company->fresh()->status)->toBe('active')
@@ -126,10 +128,6 @@ it('issues a license when the checks pass and keeps documents incomplete while e
 
     $licenseId = License::query()->value('id');
     $this->actingAs($director, 'sanctum')->getJson("/api/v1/licenses/{$licenseId}/certificate")->assertOk();
-    $this->actingAs($director, 'sanctum')->getJson("/api/v1/licenses/{$licenseId}/certificate?layout=form")->assertOk();
-    expect(Storage::disk('local')->exists('certificates/'.License::query()->value('verification_token').'-form.pdf'))->toBeTrue()
-        ->and(strlen(Storage::disk('local')->get('certificates/'.License::query()->value('verification_token').'-form.pdf')))
-        ->toBeLessThan(strlen(Storage::disk('local')->get('certificates/'.License::query()->value('verification_token').'.pdf')));
 
     expect(CompanyProduct::query()->where('company_id', $company->id)->value('approved_in_license_id'))->not->toBeNull();
 
@@ -158,7 +156,7 @@ it('blocks issuance while document requirements are enforced', function () {
     $id = reachIssuance($this, $director, $company);
 
     $this->actingAs($director, 'sanctum')
-        ->postJson("/api/v1/applications/{$id}/issue")
+        ->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])
         ->assertStatus(422)
         ->assertJsonPath('errors.issuance.0', 'Required checklist items are still missing or not verified.');
 });
@@ -170,6 +168,8 @@ it('continues a renewal from the previous license and supersedes it', function (
     licenseStaff($company, $director->id);
     applicationTemplate('company', 'renewal');
     $previous = applicationLicense('company', $company->id, $director->id, now()->addDays(20)->toDateString());
+    $previous->license_no = 'DPPB/0048/2024';
+    $previous->save();
 
     $created = $this->actingAs($director, 'sanctum')->postJson('/api/v1/applications', [
         'licensable_type' => 'company',
@@ -201,8 +201,8 @@ it('continues a renewal from the previous license and supersedes it', function (
     expect($ready->json('data.application.status'))->toBe('ready_to_issue')
         ->and($ready->json('data.issuance.valid_from'))->toBe(now()->addDays(21)->toDateString());
 
-    $issued = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue")->assertOk();
-    expect($issued->json('data.issuance.license_no'))->toBe('DPP/C/'.now()->year.'/0001/R1')
+    $issued = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])->assertOk();
+    expect($issued->json('data.issuance.license_no'))->toBe('DPPB/0048/2024/R1')
         ->and($previous->fresh()->status)->toBe('superseded');
 });
 
@@ -227,10 +227,11 @@ it('warns when a covering document expires early and then suspends and restores 
         'expiry_date' => now()->subDay()->toDateString(),
     ])->assertCreated();
 
-    $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue")
+    $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])
         ->assertStatus(409);
 
     $issued = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", [
+        'dispatch_no' => 'D-14',
         'confirm_warnings' => true,
         'warning_reason' => 'Accepted for this period',
     ])->assertOk();
@@ -271,7 +272,7 @@ it('limits a district officer to dealer licenses in assigned districts and still
     $company = Company::factory()->create();
     licenseStaff($company, $director->id);
     $id = reachIssuance($this, $director, $company);
-    $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue")->assertOk();
+    $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-14'])->assertOk();
 
     $entry = companyActor('Data Entry Operator');
     $local = Dealer::factory()->create(['district_id' => $quetta->id, 'created_by' => $entry->id, 'updated_by' => $entry->id]);
@@ -307,7 +308,7 @@ it('limits a district officer to dealer licenses in assigned districts and still
 
     $list = $this->actingAs($officer, 'sanctum')->getJson('/api/v1/licenses')->assertOk();
     $numbers = collect($list->json('data'))->pluck('license_no');
-    expect($numbers)->toContain('DPP/C/'.now()->year.'/0001')
+    expect($numbers)->toContain('DPPB/0001/'.now()->year)
         ->and($numbers)->toContain('DPP/D/QTA/2026/0001')
         ->and($numbers)->not->toContain('DPP/D/PSH/2026/0001');
 });
@@ -315,7 +316,7 @@ it('limits a district officer to dealer licenses in assigned districts and still
 it('puts the site address in the certificate qr when the domain placeholder is still set', function () {
     config(['app.frontend_url' => 'http://dpps.test:5173']);
 
-    $url = app(App\Services\Licenses\CertificateQr::class)->url('abc123');
+    $url = app(CertificateQr::class)->url('abc123');
 
     expect($url)->toBe('http://dpps.test:5173/verify/abc123');
 });
@@ -325,7 +326,7 @@ it('keeps a real public verification url in the certificate qr', function () {
         'value' => 'https://dpp.example.test/verify/',
     ]);
 
-    $url = app(App\Services\Licenses\CertificateQr::class)->url('abc123');
+    $url = app(CertificateQr::class)->url('abc123');
 
     expect($url)->toBe('https://dpp.example.test/verify/abc123');
 });

@@ -211,12 +211,15 @@ Route::middleware(['auth:sanctum', 'password.changed', 'throttle:api'])->group(f
         Route::get('/dealers/{dealer}/owners', [DealerOwnerController::class, 'index']);
         Route::get('/dealers/{dealer}/activity', [DealerController::class, 'activity']);
         Route::get('/dealers/{dealer}/documents', [DocumentController::class, 'indexDealer']);
+        Route::get('/dealers/{dealer}/photo', [DealerController::class, 'showPhoto']);
     });
 
     Route::post('/dealers/check-duplicate', [DealerController::class, 'checkDuplicate'])
         ->middleware('permission:dealers.create|dealers.update');
     Route::post('/dealers', [DealerController::class, 'store'])->middleware('permission:dealers.create');
     Route::put('/dealers/{dealer}', [DealerController::class, 'update'])->middleware('permission:dealers.update');
+    Route::post('/dealers/{dealer}/photo', [DealerController::class, 'storePhoto'])->middleware('permission:dealers.update');
+    Route::delete('/dealers/{dealer}/photo', [DealerController::class, 'destroyPhoto'])->middleware('permission:dealers.update');
     Route::delete('/dealers/{dealer}', [DealerController::class, 'destroy'])->middleware('permission:dealers.delete');
     Route::post('/dealers/{dealer}/owners/check', [DealerOwnerController::class, 'check'])
         ->middleware('permission:dealers.update');

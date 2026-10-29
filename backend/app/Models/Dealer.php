@@ -31,6 +31,7 @@ class Dealer extends Model
         'gps_lng',
         'mobile',
         'email',
+        'photo_path',
         'status',
         'legacy_reg_no',
         'legacy_notes',

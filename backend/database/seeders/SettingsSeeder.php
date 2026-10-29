@@ -19,7 +19,7 @@ class SettingsSeeder extends Seeder
             ['alert_red_days', '30', 'integer', 'alerts', 'Red alert (days)', 'Days remaining at which the expiry alert turns red.', true],
             ['alert_amber_days', '90', 'integer', 'alerts', 'Amber alert (days)', 'Days remaining at which the expiry alert turns amber.', true],
             ['max_upload_size_mb', '10', 'integer', 'general', 'Maximum upload size (MB)', 'Largest file size accepted for an upload.', true],
-            ['company_license_no_pattern', 'DPP/C/{YYYY}/{SERIAL:4}{RENEWAL}', 'string', 'numbering', 'Company license number pattern', 'Pattern used when a company license number is issued.', true],
+            ['company_license_no_pattern', 'DPPB/{SERIAL:4}/{YYYY}{RENEWAL}', 'string', 'numbering', 'Company license number pattern', 'Pattern used when a company license number is issued.', true],
             ['dealer_license_no_pattern', 'DPP/D/{DISTRICT}/{YYYY}/{SERIAL:4}{RENEWAL}', 'string', 'numbering', 'Dealer license number pattern', 'Pattern used when a dealer license number is issued.', true],
             ['application_no_pattern', 'APP-{C/D}-{YYYY}-{SERIAL:4}', 'string', 'numbering', 'Application number pattern', 'Pattern used when an application number is assigned.', true],
             ['public_verify_base_url', 'https://<domain>/verify/', 'string', 'general', 'Public verification URL', 'Base URL placed in the certificate QR code.', false],

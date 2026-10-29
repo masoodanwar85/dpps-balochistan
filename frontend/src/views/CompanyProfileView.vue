@@ -897,15 +897,14 @@ async function saveSuspend() {
   await loadLicenses()
 }
 
-async function openCertificate(layout) {
+async function openCertificate() {
   const licenseId = profile.value?.license?.id
 
   if (!licenseId) {
     return
   }
 
-  const query = layout ? `?layout=${layout}` : ''
-  const { response, payload } = await api(`/api/v1/licenses/${licenseId}/certificate${query}`)
+  const { response, payload } = await api(`/api/v1/licenses/${licenseId}/certificate`)
 
   if (!response.ok) {
     notice.value = firstError(payload?.errors) || 'The certificate could not be opened.'
@@ -940,15 +939,13 @@ onMounted(async () => {
           <Button v-else type="button" variant="outline" size="sm" disabled>Suspend</Button>
           <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate()">Certificate</Button>
           <Button v-else type="button" variant="outline" size="sm" disabled>Certificate</Button>
-          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate('form')">On printed form</Button>
-          <Button v-else type="button" variant="outline" size="sm" disabled>On printed form</Button>
           <Button type="button" variant="outline" size="sm" @click="tab = 'activity'">Activity</Button>
           <Button type="button" variant="outline" size="sm" @click="router.push({ name: 'companies' })">Back</Button>
         </template>
         <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <StatusBadge :value="company.status" :label="statusLabel(company.status)" />
           <template v-if="profile.license">
-            <span>License {{ profile.license.license_no }}</span>
+            <span>License {{ profile.license.license_no }}<template v-if="profile.license.dispatch_no"> · D/No. {{ profile.license.dispatch_no }}</template></span>
             <span>{{ displayDate(profile.license.valid_from) }} → {{ displayDate(profile.license.valid_to) }}</span>
             <span v-if="profile.license.days_remaining !== null">({{ profile.license.days_remaining }} d)</span>
           </template>
@@ -1009,6 +1006,10 @@ onMounted(async () => {
               <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
                 <p class="text-xs font-medium text-slate-600">Incorporation no</p>
                 <p class="mt-1 font-semibold text-slate-950">{{ company.incorporation_no || '—' }}</p>
+              </div>
+              <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
+                <p class="text-xs font-medium text-slate-600">Form C/D no</p>
+                <p class="mt-1 font-semibold text-slate-950">{{ company.form_cd_no || '—' }}</p>
               </div>
               <div class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
                 <p class="text-xs font-medium text-slate-600">Incorporation date</p>

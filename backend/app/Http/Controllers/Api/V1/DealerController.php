@@ -22,8 +22,10 @@ use App\Support\ListQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DealerController extends Controller
 {
@@ -100,6 +102,35 @@ class DealerController extends Controller
         return ApiResponse::success($this->payload($dealer));
     }
 
+    public function storePhoto(Request $request, Dealer $dealer, DealerWriter $writer): JsonResponse
+    {
+        $request->validate([
+            'photo' => ['required', 'file', 'mimes:jpg,jpeg,png', 'max:5120'],
+        ]);
+
+        $dealer = $writer->savePhoto($dealer, $request->file('photo'), $request->user());
+
+        return ApiResponse::success($this->payload($dealer));
+    }
+
+    public function destroyPhoto(Request $request, Dealer $dealer, DealerWriter $writer): JsonResponse
+    {
+        $dealer = $writer->clearPhoto($dealer, $request->user());
+
+        return ApiResponse::success($this->payload($dealer));
+    }
+
+    public function showPhoto(Dealer $dealer): StreamedResponse
+    {
+        $path = $dealer->photo_path;
+
+        if (! is_string($path) || $path === '' || ! Storage::disk('local')->exists($path)) {
+            abort(404);
+        }
+
+        return Storage::disk('local')->response($path);
+    }
+
     public function destroy(DeleteDealerRequest $request, Dealer $dealer, DealerWriter $writer): JsonResponse
     {
         $writer->delete($dealer, $request->string('reason')->value(), $request->user());
@@ -174,6 +205,7 @@ class DealerController extends Controller
             'gps_lng' => $dealer->gps_lng,
             'mobile' => $dealer->mobile,
             'email' => $dealer->email,
+            'has_photo' => is_string($dealer->photo_path) && $dealer->photo_path !== '',
             'status' => $dealer->status,
             'expiry_date' => $expiry ? Carbon::parse($expiry)->toDateString() : null,
             'companies' => $dealer->companies
@@ -226,6 +258,7 @@ class DealerController extends Controller
         return [
             'id' => $license->id,
             'license_no' => $license->license_no,
+            'dispatch_no' => $license->dispatch_no,
             'license_kind' => $license->license_kind,
             'status' => $license->status,
             'valid_from' => $license->valid_from?->toDateString(),

@@ -95,6 +95,7 @@ class LicenseDirectory
         return [
             'id' => $license->id,
             'license_no' => $license->license_no,
+            'dispatch_no' => $license->dispatch_no,
             'applicant_name' => $application instanceof LicenseApplication
                 ? $application->applicantName()
                 : $this->name($license),

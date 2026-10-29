@@ -177,10 +177,9 @@ async function submitAction() {
   await load()
 }
 
-async function certificate(row, layout) {
+async function certificate(row) {
   loadError.value = ''
-  const query = layout ? `?layout=${layout}` : ''
-  const { response, payload } = await api(`/api/v1/licenses/${row.id}/certificate${query}`)
+  const { response, payload } = await api(`/api/v1/licenses/${row.id}/certificate`)
 
   if (!response.ok) {
     loadError.value = firstError(payload?.errors) || 'The certificate could not be opened.'
@@ -313,6 +312,7 @@ onMounted(async () => {
           <thead>
             <tr>
               <th>License No</th>
+              <th>Dispatch No.</th>
               <th>Applicant</th>
               <th>Type</th>
               <th>Kind</th>
@@ -327,6 +327,7 @@ onMounted(async () => {
           <tbody>
             <tr v-for="row in rows" :key="row.id">
               <td class="font-medium">{{ row.license_no }}</td>
+              <td>{{ row.dispatch_no || '—' }}</td>
               <td>{{ row.applicant_name }}</td>
               <td><StatusBadge :value="row.licensable_type" :label="label(row.licensable_type)" /></td>
               <td><StatusBadge :value="row.license_kind" :label="label(row.license_kind)" /></td>
@@ -339,7 +340,6 @@ onMounted(async () => {
                 <div class="flex flex-wrap gap-1">
                   <Button type="button" variant="outline" size="sm" @click="openRow(row)">View</Button>
                   <Button type="button" variant="outline" size="sm" @click="certificate(row)">Certificate</Button>
-                  <Button v-if="row.licensable_type === 'company'" type="button" variant="outline" size="sm" @click="certificate(row, 'form')">On printed form</Button>
                   <Button v-if="canChange(row, 'suspend')" type="button" variant="outline" size="sm" @click="startAction(row, 'suspend')">Suspend</Button>
                   <Button v-if="canChange(row, 'cancel')" type="button" variant="outline" size="sm" @click="startAction(row, 'cancel')">Cancel</Button>
                   <Button v-if="canChange(row, 'restore')" type="button" variant="outline" size="sm" @click="startAction(row, 'restore')">Restore</Button>

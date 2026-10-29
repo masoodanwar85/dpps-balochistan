@@ -118,6 +118,7 @@ class PreviousLicense
             $kind = $input['license_kind'];
             $license = License::query()->create([
                 'license_no' => $number,
+                'dispatch_no' => trim((string) $input['dispatch_no']),
                 'licensable_type' => $type,
                 'licensable_id' => $party->id,
                 'application_id' => null,

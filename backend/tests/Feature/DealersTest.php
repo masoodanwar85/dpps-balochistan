@@ -4,6 +4,7 @@ use App\Exports\DealersExport;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\CompanyPerson;
+use App\Models\Dealer;
 use App\Models\District;
 use App\Models\DocumentType;
 use App\Models\Person;
@@ -346,4 +347,32 @@ it('requires at least one company and hides soft-deleted companies from the link
 
     expect($first->fresh()->dealers)->toHaveCount(0)
         ->and($second->fresh()->dealers)->toHaveCount(1);
+});
+
+it('stores a dealer photo and serves it back', function () {
+    Storage::fake('local');
+    $entry = companyActor('Data Entry Operator');
+    $dealer = Dealer::factory()->create();
+
+    $this->actingAs($entry, 'sanctum')
+        ->post('/api/v1/dealers/'.$dealer->id.'/photo', [
+            'photo' => UploadedFile::fake()->image('face.jpg', 80, 90),
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.has_photo', true);
+
+    $path = $dealer->fresh()->photo_path;
+
+    expect($path)->toBe('dealers/'.$dealer->id.'/photo.jpg')
+        ->and(Storage::disk('local')->exists($path))->toBeTrue()
+        ->and(ActivityLog::query()->where('subject_type', 'dealer')->where('subject_id', $dealer->id)->where('action', 'updated')->exists())->toBeTrue();
+
+    $this->actingAs($entry, 'sanctum')
+        ->get('/api/v1/dealers/'.$dealer->id.'/photo')
+        ->assertOk();
+
+    $this->actingAs($entry, 'sanctum')
+        ->deleteJson('/api/v1/dealers/'.$dealer->id.'/photo')
+        ->assertOk()
+        ->assertJsonPath('data.has_photo', false);
 });

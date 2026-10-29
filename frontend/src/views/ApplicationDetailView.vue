@@ -48,6 +48,7 @@ const challanForm = ref({ challan_no: '', bank_name: '', branch: '', payment_dat
 const rejectChallanId = ref(null)
 const challanRemarks = ref('')
 const showIssue = ref(false)
+const dispatchNo = ref('')
 const issueReason = ref('')
 const issueWarnings = ref([])
 
@@ -394,6 +395,7 @@ async function closeApplication() {
 
 function openIssue() {
   issueWarnings.value = issuance.value?.warnings || []
+  dispatchNo.value = ''
   issueReason.value = ''
   showIssue.value = true
 }
@@ -401,7 +403,7 @@ function openIssue() {
 async function issueLicense() {
   saving.value = true
   notice.value = ''
-  const body = {}
+  const body = { dispatch_no: dispatchNo.value.trim() }
 
   if (issueWarnings.value.length > 0) {
     body.confirm_warnings = true
@@ -1026,6 +1028,10 @@ onMounted(load)
       <PageSection v-if="showIssue && issuance" accent="emerald" eyebrow="Issuance" :title="`Issue license — ${application.applicant_name}`">
       <form class="grid max-w-xl gap-3" @submit.prevent="issueLicense">
         <p class="text-sm">License No: {{ issuance.license_no }} (auto)</p>
+        <div class="dpps-field">
+          <Label for="dispatch-no">Dispatch No.</Label>
+          <Input id="dispatch-no" v-model="dispatchNo" required maxlength="50" aria-label="Dispatch No." />
+        </div>
         <p class="text-sm">Valid from: {{ displayDate(issuance.valid_from) }}</p>
         <p class="text-sm">Valid to: {{ displayDate(issuance.valid_to) }}</p>
         <p class="text-sm">Products approved: {{ issuance.product_count ?? 0 }}</p>

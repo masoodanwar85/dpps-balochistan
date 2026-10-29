@@ -7,7 +7,7 @@ import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api, ensureCsrf, firstError } from '@/lib/api'
+import { api, ensureCsrf, firstError, upload } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -58,6 +58,7 @@ const statuses = {
 
 const tab = ref('overview')
 const profile = ref(null)
+const photoUrl = ref('')
 const owners = ref([])
 const activity = ref([])
 const documents = ref([])
@@ -135,6 +136,70 @@ async function loadProfile() {
   }
 
   profile.value = payload.data
+  await loadPhoto()
+}
+
+async function loadPhoto() {
+  if (photoUrl.value.startsWith('blob:')) {
+    URL.revokeObjectURL(photoUrl.value)
+  }
+
+  photoUrl.value = ''
+
+  if (!dealer.value?.has_photo) {
+    return
+  }
+
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/dealers/${dealerId.value}/photo`, {
+    credentials: 'include',
+    headers: { Accept: 'image/*' },
+  })
+
+  if (!response.ok) {
+    return
+  }
+
+  photoUrl.value = URL.createObjectURL(await response.blob())
+}
+
+async function savePhoto(event) {
+  const file = event.target.files?.[0]
+
+  event.target.value = ''
+
+  if (!file) {
+    return
+  }
+
+  formError.value = ''
+  const body = new FormData()
+  body.append('photo', file)
+  const { response, payload } = await upload(`/api/v1/dealers/${dealerId.value}/photo`, body)
+
+  if (!response.ok) {
+    formError.value = firstError(payload?.errors) || 'Could not save this photo.'
+
+    return
+  }
+
+  profile.value = { ...profile.value, dealer: payload.data }
+  notice.value = 'Photo saved. It prints on the certificate.'
+  await loadPhoto()
+}
+
+async function removePhoto() {
+  formError.value = ''
+  const { response, payload } = await api(`/api/v1/dealers/${dealerId.value}/photo`, { method: 'DELETE' })
+
+  if (!response.ok) {
+    formError.value = firstError(payload?.errors) || 'Could not remove this photo.'
+
+    return
+  }
+
+  profile.value = { ...profile.value, dealer: payload.data }
+  notice.value = 'Photo removed.'
+  await loadPhoto()
 }
 
 async function loadOwners() {
@@ -544,7 +609,7 @@ onMounted(async () => {
           <Button v-else type="button" variant="outline" size="sm" disabled>New Application</Button>
           <Button v-if="canSuspendLicense" type="button" variant="outline" size="sm" @click="startSuspend">Suspend</Button>
           <Button v-else type="button" variant="outline" size="sm" disabled>Suspend</Button>
-          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate">Certificate</Button>
+          <Button v-if="profile.license?.id" type="button" variant="outline" size="sm" @click="openCertificate()">Certificate</Button>
           <Button v-else type="button" variant="outline" size="sm" disabled>Certificate</Button>
           <Button type="button" variant="outline" size="sm" @click="tab = 'activity'">Activity</Button>
           <Button type="button" variant="outline" size="sm" @click="router.push({ name: 'dealers' })">Back</Button>
@@ -553,7 +618,7 @@ onMounted(async () => {
           <StatusBadge :value="dealer.status" :label="statusLabel(dealer.status)" />
           <span>{{ dealer.district_name }}<template v-if="dealer.tehsil_name"> › {{ dealer.tehsil_name }}</template></span>
           <template v-if="profile.license">
-            <span>License {{ profile.license.license_no }}</span>
+            <span>License {{ profile.license.license_no }}<template v-if="profile.license.dispatch_no"> · D/No. {{ profile.license.dispatch_no }}</template></span>
             <span>{{ displayDate(profile.license.valid_from) }} → {{ displayDate(profile.license.valid_to) }}</span>
           </template>
         </div>
@@ -581,6 +646,16 @@ onMounted(async () => {
       <template v-if="tab === 'overview'">
         <div class="grid gap-6 lg:grid-cols-2">
           <PageSection accent="sky" eyebrow="Shop" title="Business details">
+            <div class="mb-4 flex items-start gap-4">
+              <img v-if="photoUrl" :src="photoUrl" alt="Dealer photo" class="h-32 w-28 rounded border object-cover">
+              <div v-else class="flex h-32 w-28 items-center justify-center rounded border border-dashed px-2 text-center text-xs text-muted-foreground">No photo</div>
+              <div v-if="canUpdate" class="grid gap-2">
+                <Label for="dealer-photo">Photo</Label>
+                <input id="dealer-photo" type="file" accept="image/jpeg,image/png" class="text-sm" aria-label="Dealer photo" @change="savePhoto">
+                <p class="text-xs text-muted-foreground">JPG or PNG. This photo prints on the certificate.</p>
+                <Button v-if="dealer.has_photo" type="button" variant="outline" size="sm" @click="removePhoto">Remove photo</Button>
+              </div>
+            </div>
             <div class="grid gap-3">
               <div class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-3">
                 <p class="text-xs font-medium text-sky-800">Business address</p>

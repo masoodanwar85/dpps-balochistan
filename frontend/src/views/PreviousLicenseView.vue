@@ -16,6 +16,7 @@ const search = ref('')
 const matches = ref([])
 const selected = ref(null)
 const licenseNo = ref('')
+const dispatchNo = ref('')
 const licenseKind = ref('registration')
 const validTo = ref('')
 const validFrom = ref('')
@@ -130,6 +131,7 @@ async function save() {
       licensable_type: partyType.value,
       licensable_id: selected.value.id,
       license_no: licenseNo.value.trim(),
+      dispatch_no: dispatchNo.value.trim(),
       license_kind: licenseKind.value,
       valid_to: validTo.value,
     },
@@ -144,6 +146,7 @@ async function save() {
   const history = payload.data.status === 'superseded' ? ' A later license is already on file, so this one is kept as history.' : ''
   notice.value = `Saved ${payload.data.license_no} for ${partyName(selected.value)}. It runs from ${displayDate(payload.data.valid_from)} to ${displayDate(payload.data.valid_to)}.${history}`
   licenseNo.value = ''
+  dispatchNo.value = ''
   validTo.value = ''
   validFrom.value = ''
 }
@@ -223,6 +226,11 @@ onMounted(async () => {
       <div class="dpps-field">
         <Label for="prev-no">License number</Label>
         <Input id="prev-no" v-model="licenseNo" required maxlength="100" aria-label="License number" />
+      </div>
+
+      <div class="dpps-field">
+        <Label for="prev-dispatch">Dispatch No.</Label>
+        <Input id="prev-dispatch" v-model="dispatchNo" required maxlength="50" aria-label="Dispatch No." />
       </div>
 
       <div class="dpps-field">

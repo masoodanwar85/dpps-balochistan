@@ -167,11 +167,15 @@ it('keeps company users on their own company and officers on the full list', fun
             'name' => 'Entered Agro',
             'website' => 'https://example.com',
             'pcpa_member' => true,
+            'incorporation_no' => 'INC-100',
+            'form_cd_no' => 'CD-200',
         ]))
         ->assertCreated()
         ->assertJsonPath('data.status', 'unlicensed')
         ->assertJsonPath('data.website', 'https://example.com')
-        ->assertJsonPath('data.company_code', 'C-0001');
+        ->assertJsonPath('data.company_code', 'C-0001')
+        ->assertJsonPath('data.incorporation_no', 'INC-100')
+        ->assertJsonPath('data.form_cd_no', 'CD-200');
 });
 
 it('filters by PCPA and by the current license expiry', function () {

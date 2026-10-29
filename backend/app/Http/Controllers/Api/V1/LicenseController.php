@@ -7,10 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Licenses\ChangeLicenseStatusRequest;
 use App\Http\Requests\Licenses\StorePreviousLicenseRequest;
 use App\Models\Company;
+use App\Models\Dealer;
 use App\Models\License;
+use App\Models\LicenseApplication;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\Licenses\CompanyCertificate;
+use App\Services\Licenses\DealerCertificate;
 use App\Services\Licenses\LicenseDirectory;
 use App\Services\Licenses\LicenseStatusChanges;
 use App\Services\Licenses\PreviousLicense;
@@ -60,35 +63,49 @@ class LicenseController extends Controller
         return ApiResponse::success($this->directory->present($license));
     }
 
-    public function certificate(License $license, Request $request, CompanyCertificate $certificates): JsonResponse
+    public function certificate(License $license, Request $request, CompanyCertificate $companyCertificates, DealerCertificate $dealerCertificates): JsonResponse
     {
-        $form = $license->licensable_type === 'company' && $request->query('layout') === 'form';
-
-        if ($license->licensable_type === 'company') {
-            $company = Company::withTrashed()->find($license->licensable_id);
-
-            if (! $company instanceof Company) {
-                abort(404, 'Certificate not found.');
-            }
-
+        if ($license->licensable_type === 'company' || $license->licensable_type === 'dealer') {
             if (! is_string($license->verification_token) || $license->verification_token === '') {
                 $license->verification_token = (string) str()->random(40);
                 $license->updated_by = $this->actor($request)->id;
                 $license->save();
             }
 
-            $base = is_string($license->certificate_path) && $license->certificate_path !== ''
+            $path = is_string($license->certificate_path) && $license->certificate_path !== ''
                 ? $license->certificate_path
                 : 'certificates/'.$license->verification_token.'.pdf';
-            $path = $form ? substr($base, 0, -4).'-form.pdf' : $base;
-            $stored = $certificates->pdf(
-                $company,
-                $license->license_no,
-                $license->valid_from?->format('d-m-Y') ?? '',
-                $license->valid_to?->format('d-m-Y') ?? '',
-                $license->verification_token,
-                $form,
-            );
+            $from = $license->valid_from?->format('d-m-Y') ?? '';
+            $to = $license->valid_to?->format('d-m-Y') ?? '';
+
+            if ($license->licensable_type === 'company') {
+                $company = Company::withTrashed()->find($license->licensable_id);
+
+                if (! $company instanceof Company) {
+                    abort(404, 'Certificate not found.');
+                }
+
+                $stored = $companyCertificates->pdf($company, $license->license_no, $from, $to, $license->verification_token);
+            } else {
+                $dealer = Dealer::withTrashed()->find($license->licensable_id);
+
+                if (! $dealer instanceof Dealer) {
+                    abort(404, 'Certificate not found.');
+                }
+
+                $application = $license->application_id
+                    ? LicenseApplication::query()->find($license->application_id)
+                    : null;
+                $stored = $dealerCertificates->pdf(
+                    $dealer,
+                    $application instanceof LicenseApplication ? $application : null,
+                    $license->license_no,
+                    $from,
+                    $to,
+                    $license->verification_token,
+                    (string) ($license->dispatch_no ?? ''),
+                );
+            }
 
             if (Storage::disk('local')->put($path, $stored) === false) {
                 abort(404, 'Certificate not found.');
@@ -105,7 +122,7 @@ class LicenseController extends Controller
         $url = Storage::disk('local')->temporaryUrl($path, $expires);
         $this->logger->log(
             'downloaded',
-            $form ? 'Opened certificate form '.$license->license_no : 'Opened certificate '.$license->license_no,
+            'Opened certificate '.$license->license_no,
             'license',
             $license->id,
             $this->actor($request),
