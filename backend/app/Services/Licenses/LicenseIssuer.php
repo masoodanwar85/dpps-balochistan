@@ -74,7 +74,7 @@ class LicenseIssuer
         $from = $dates['valid_from']->format('d-m-Y');
         $to = $dates['valid_to']->format('d-m-Y');
         $pdf = match (true) {
-            $company instanceof Company => app(CompanyCertificate::class)->pdf($company, $number, $from, $to, $token),
+            $company instanceof Company => app(CompanyCertificate::class)->pdf($company, $number, $from, $to, $token, (string) $data['dispatch_no']),
             $dealer instanceof Dealer => app(DealerCertificate::class)->pdf($dealer, $application, $number, $from, $to, $token, (string) $data['dispatch_no']),
             default => Pdf::loadView('pdfs.license-certificate', [
                 'licenseNo' => $number,

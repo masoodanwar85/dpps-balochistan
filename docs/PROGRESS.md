@@ -720,3 +720,7 @@ Membership number is removed from the company record. Form C/D number is optiona
 
 A new company registration is numbered `DPPB/0048/2024` (serial, then the year it is registered). A renewal of that license keeps the same serial and year and adds the counter: `DPPB/0048/2024/R1`, then `R2`. Dealer numbers are unchanged. A renewal of a license that is not already in this form still receives a new serial for the current year. Numbers already issued are left as they are.
 
+## Follow-up — Company certificate matches the supplied HTML
+
+The company certificate now follows `company-registration.html`: ladybug border, the same Agriculture and Plant Protection logos used on the dealer certificate, the curved title, the 1973 wording, and the English terms on page 2. The dispatch number prints after “No:”. The registration number prints after “Registration #”. The QR code sits at the lower left of page 1. The dealer certificate is unchanged.
+

@@ -85,7 +85,7 @@ class LicenseController extends Controller
                     abort(404, 'Certificate not found.');
                 }
 
-                $stored = $companyCertificates->pdf($company, $license->license_no, $from, $to, $license->verification_token);
+                $stored = $companyCertificates->pdf($company, $license->license_no, $from, $to, $license->verification_token, (string) ($license->dispatch_no ?? ''));
             } else {
                 $dealer = Dealer::withTrashed()->find($license->licensable_id);
 

@@ -11,5 +11,8 @@
     "cert times": {
         "normal": "\/Users\/masoodanwar85\/Projects\/dpp-management-system-v2\/backend\/storage\/fonts\/cert_times_normal_95e0d2aaa78bc743e20d94e7ee9ec1dd",
         "bold": "cert_times_bold_d43f86f9bc4c0f1a450914148db99cf0"
+    },
+    "cert script": {
+        "normal": "cert_script_normal_bed58fd7feb3b19f3017a90adf8090fe"
     }
 }
