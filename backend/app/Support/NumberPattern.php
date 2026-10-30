@@ -6,6 +6,10 @@ class NumberPattern
 {
     public const SAMPLE_SERIAL = 46;
 
+    public const SAMPLE_DISTRICT_SERIAL = 1;
+
+    public const SAMPLE_BALOCHISTAN_SERIAL = 5;
+
     public const SAMPLE_DISTRICT = 'QTA';
 
     public const SAMPLE_RENEWAL = '/R1';
@@ -14,7 +18,7 @@ class NumberPattern
 
     public static function error(string $pattern): ?string
     {
-        $stripped = preg_replace('/\{(?:YYYY|DISTRICT|RENEWAL|C\/D|SERIAL:[1-8])\}/', '', $pattern);
+        $stripped = preg_replace('/\{(?:YYYY|DISTRICT|RENEWAL|C\/D|SERIAL:[1-8]|DISTRICT_SERIAL:[1-8]|BALOCHISTAN_SERIAL:[1-8])\}/', '', $pattern);
 
         if (! is_string($stripped) || preg_match('/[{}]/', $stripped) === 1) {
             return 'The pattern has an unknown placeholder.';
@@ -48,6 +52,14 @@ class NumberPattern
 
             if (preg_match('/^SERIAL:([1-8])$/', $token, $serial) === 1) {
                 return str_pad((string) self::SAMPLE_SERIAL, (int) $serial[1], '0', STR_PAD_LEFT);
+            }
+
+            if (preg_match('/^DISTRICT_SERIAL:([1-8])$/', $token, $serial) === 1) {
+                return str_pad((string) self::SAMPLE_DISTRICT_SERIAL, (int) $serial[1], '0', STR_PAD_LEFT);
+            }
+
+            if (preg_match('/^BALOCHISTAN_SERIAL:([1-8])$/', $token, $serial) === 1) {
+                return str_pad((string) self::SAMPLE_BALOCHISTAN_SERIAL, (int) $serial[1], '0', STR_PAD_LEFT);
             }
 
             return $match[0];

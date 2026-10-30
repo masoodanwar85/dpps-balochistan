@@ -33,6 +33,8 @@ function preview(pattern) {
     .replaceAll('{DISTRICT}', 'QTA')
     .replaceAll('{RENEWAL}', '/R1')
     .replaceAll('{C/D}', 'C')
+    .replace(/\{DISTRICT_SERIAL:(\d+)\}/g, (_, width) => String(1).padStart(Number(width), '0'))
+    .replace(/\{BALOCHISTAN_SERIAL:(\d+)\}/g, (_, width) => String(5).padStart(Number(width), '0'))
     .replace(/\{SERIAL:(\d+)\}/g, (_, width) => String(46).padStart(Number(width), '0'))
 }
 

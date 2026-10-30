@@ -43,10 +43,13 @@ it('returns only editable settings and a license number preview', function () {
         ->and($keys)->toContain('enforce_document_requirements');
 
     $company = collect($response->json('data'))->firstWhere('key', 'company_license_no_pattern');
+    $dealer = collect($response->json('data'))->firstWhere('key', 'dealer_license_no_pattern');
     $application = collect($response->json('data'))->firstWhere('key', 'application_no_pattern');
 
     expect($company['value'])->toBe('DPPB/{SERIAL:4}/{YYYY}{RENEWAL}')
         ->and($company['preview'])->toBe('DPPB/0046/'.now()->year.'/R1')
+        ->and($dealer['value'])->toBe('{DISTRICT_SERIAL:4} / DPPB - {BALOCHISTAN_SERIAL:4} / {YYYY} / {DISTRICT}{RENEWAL}')
+        ->and($dealer['preview'])->toBe('0001 / DPPB - 0005 / '.now()->year.' / QTA/R1')
         ->and($application['preview'])->toBe('APP-C-'.now()->year.'-0046')
         ->and(collect($response->json('data'))->firstWhere('key', 'enforce_document_requirements')['value'])->toBeFalse();
 });

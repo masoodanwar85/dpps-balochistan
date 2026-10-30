@@ -720,6 +720,12 @@ Membership number is removed from the company record. Form C/D number is optiona
 
 A new company registration is numbered `DPPB/0048/2024` (serial, then the year it is registered). A renewal of that license keeps the same serial and year and adds the counter: `DPPB/0048/2024/R1`, then `R2`. Dealer numbers are unchanged. A renewal of a license that is not already in this form still receives a new serial for the current year. Numbers already issued are left as they are.
 
+A new company takes the highest company serial already issued, adds 1, and that number is saved. `DPPB/0048/2024/R2` is serial 48, so the next new company is `DPPB/0049` plus the year it is registered. A renewal does not take a new serial. Dealer serials stay on their own counter. An older number that is not in this form does not move the company counter.
+
+## Follow-up — Dealer license number
+
+A new dealer license is `{district serial} / DPPB - {Balochistan serial} / {year} / {district code}`, for example `0001 / DPPB - 0005 / 2025 / QTA`. The district serial is the next number for that district. The Balochistan serial is the next number across every district. The year is the year the dealer is registered. Both serials are saved and the officer cannot type them. A renewal of a number already in this form keeps both serials, the year, and the district, and adds `/R1`, then `/R2`, so the license number stays unique. A renewal of an older number receives the next serials for the current year. Company numbers are unchanged. Numbers already issued are left as they are.
+
 ## Follow-up — Company certificate matches the supplied HTML
 
 The company certificate now follows `company-registration.html`: ladybug border, the same Agriculture and Plant Protection logos used on the dealer certificate, the curved title, the 1973 wording, and the English terms on page 2. The dispatch number prints after “No:”. The registration number prints after “Registration #”. The QR code sits at the lower left of page 1. The dealer certificate is unchanged.

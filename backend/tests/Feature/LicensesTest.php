@@ -11,13 +11,16 @@ use App\Models\DocumentType;
 use App\Models\License;
 use App\Models\Person;
 use App\Models\Product;
+use App\Models\LicenseApplication;
 use App\Models\Setting;
 use App\Services\Licenses\CertificateQr;
+use App\Services\Licenses\LicenseNumbers;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Database\Seeders\SettingsSeeder;
 use Database\Seeders\WorkflowStageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -50,9 +53,11 @@ function licenseStaff(Company $company, int $userId, int $count = 2): void
     }
 }
 
-function reachIssuance($case, $actor, Company $company): int
+function reachIssuance($case, $actor, Company $company, bool $template = true): int
 {
-    applicationTemplate('company', 'new');
+    if ($template) {
+        applicationTemplate('company', 'new');
+    }
     $created = $case->actingAs($actor, 'sanctum')->postJson('/api/v1/applications', [
         'licensable_type' => 'company',
         'licensable_id' => $company->id,
@@ -206,6 +211,60 @@ it('continues a renewal from the previous license and supersedes it', function (
         ->and($previous->fresh()->status)->toBe('superseded');
 });
 
+it('gives a new company the last issued company serial plus one', function () {
+    Storage::fake('local');
+    $director = companyActor('Director');
+    $earlier = Company::factory()->create();
+    $ignored = Company::factory()->create();
+    License::query()->create([
+        'license_no' => 'DPPB/0048/2024/R2',
+        'licensable_type' => 'company',
+        'licensable_id' => $earlier->id,
+        'license_kind' => 'renewal',
+        'renewal_count' => 2,
+        'valid_from' => '2024-01-01',
+        'valid_to' => '2024-12-31',
+        'status' => 'expired',
+        'verification_token' => Str::random(40),
+        'documents_status' => 'not_applicable',
+        'issued_with_enforcement' => false,
+        'is_legacy' => true,
+        'created_by' => $director->id,
+        'updated_by' => $director->id,
+    ]);
+    License::query()->create([
+        'license_no' => 'DPP/C/2026/0099',
+        'licensable_type' => 'company',
+        'licensable_id' => $ignored->id,
+        'license_kind' => 'registration',
+        'valid_from' => now()->subYear()->toDateString(),
+        'valid_to' => now()->addMonth()->toDateString(),
+        'status' => 'active',
+        'verification_token' => Str::random(40),
+        'documents_status' => 'not_applicable',
+        'issued_with_enforcement' => false,
+        'is_legacy' => true,
+        'created_by' => $director->id,
+        'updated_by' => $director->id,
+    ]);
+
+    $company = Company::factory()->create();
+    licenseStaff($company, $director->id);
+    $id = reachIssuance($this, $director, $company);
+    $issued = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$id}/issue", ['dispatch_no' => 'D-15'])->assertOk();
+
+    expect($issued->json('data.issuance.license_no'))->toBe('DPPB/0049/'.now()->year)
+        ->and((int) DB::table('license_number_sequences')->where('entity_type', 'company')->whereNull('district_id')->max('last_serial'))->toBe(49);
+
+    $next = Company::factory()->create();
+    licenseStaff($next, $director->id);
+    $second = reachIssuance($this, $director, $next, false);
+    $again = $this->actingAs($director, 'sanctum')->postJson("/api/v1/applications/{$second}/issue", ['dispatch_no' => 'D-16'])->assertOk();
+
+    expect($again->json('data.issuance.license_no'))->toBe('DPPB/0050/'.now()->year)
+        ->and((int) DB::table('license_number_sequences')->where('entity_type', 'company')->whereNull('district_id')->max('last_serial'))->toBe(50);
+});
+
 it('warns when a covering document expires early and then suspends and restores the license', function () {
     Storage::fake('local');
     $director = companyActor('Director');
@@ -312,6 +371,70 @@ it('limits a district officer to dealer licenses in assigned districts and still
         ->and($numbers)->toContain('DPP/D/QTA/2026/0001')
         ->and($numbers)->not->toContain('DPP/D/PSH/2026/0001');
 });
+
+it('numbers a new dealer from the district count and the Balochistan count', function () {
+    $director = companyActor('Director');
+    $quetta = District::factory()->create(['name' => 'Quetta', 'code' => 'QTA']);
+    $pishin = District::factory()->create(['name' => 'Pishin', 'code' => 'PSH']);
+    $kept = Dealer::factory()->create(['district_id' => $quetta->id, 'created_by' => $director->id, 'updated_by' => $director->id]);
+    $other = Dealer::factory()->create(['district_id' => $pishin->id, 'created_by' => $director->id, 'updated_by' => $director->id]);
+    $old = Dealer::factory()->create(['district_id' => $quetta->id, 'created_by' => $director->id, 'updated_by' => $director->id]);
+    dealerLicense($kept->id, $director->id, '0001 / DPPB - 0005 / 2025 / QTA');
+    dealerLicense($other->id, $director->id, '0003 / DPPB - 0004 / 2024 / PSH');
+    dealerLicense($old->id, $director->id, 'DPP/D/QTA/2026/0099');
+
+    $numbers = app(LicenseNumbers::class);
+    $first = Dealer::factory()->create(['district_id' => $quetta->id, 'created_by' => $director->id, 'updated_by' => $director->id]);
+    $issued = $numbers->next(dealerApplication($first->id, 'new'));
+
+    expect($issued)->toBe('0002 / DPPB - 0006 / '.now()->year.' / QTA');
+
+    $second = Dealer::factory()->create(['district_id' => $quetta->id, 'created_by' => $director->id, 'updated_by' => $director->id]);
+    $preview = $numbers->preview(dealerApplication($second->id, 'new'));
+
+    expect($preview)->toBe('0003 / DPPB - 0007 / '.now()->year.' / QTA')
+        ->and($numbers->next(dealerApplication($second->id, 'new')))->toBe($preview);
+
+    $third = Dealer::factory()->create(['district_id' => $pishin->id, 'created_by' => $director->id, 'updated_by' => $director->id]);
+
+    expect($numbers->next(dealerApplication($third->id, 'new')))->toBe('0004 / DPPB - 0008 / '.now()->year.' / PSH');
+
+    $renewal = dealerApplication($kept->id, 'renewal');
+    $renewal->previous_license_id = License::query()->where('license_no', '0001 / DPPB - 0005 / 2025 / QTA')->value('id');
+
+    expect($numbers->next($renewal))->toBe('0001 / DPPB - 0005 / 2025 / QTA/R1')
+        ->and((int) DB::table('license_number_sequences')->where('entity_type', 'dealer')->whereNull('district_id')->max('last_serial'))->toBe(8)
+        ->and((int) DB::table('license_number_sequences')->where('entity_type', 'dealer')->where('district_id', $quetta->id)->max('last_serial'))->toBe(3)
+        ->and((int) DB::table('license_number_sequences')->where('entity_type', 'dealer')->where('district_id', $pishin->id)->max('last_serial'))->toBe(4);
+});
+
+function dealerLicense(int $dealerId, int $userId, string $licenseNo): void
+{
+    License::query()->create([
+        'license_no' => $licenseNo,
+        'licensable_type' => 'dealer',
+        'licensable_id' => $dealerId,
+        'license_kind' => 'registration',
+        'valid_from' => '2024-01-01',
+        'valid_to' => '2024-12-31',
+        'status' => 'active',
+        'verification_token' => Str::random(40),
+        'documents_status' => 'not_applicable',
+        'issued_with_enforcement' => false,
+        'is_legacy' => true,
+        'created_by' => $userId,
+        'updated_by' => $userId,
+    ]);
+}
+
+function dealerApplication(int $dealerId, string $type): LicenseApplication
+{
+    return new LicenseApplication([
+        'licensable_type' => 'dealer',
+        'licensable_id' => $dealerId,
+        'application_type' => $type,
+    ]);
+}
 
 it('puts the site address in the certificate qr when the domain placeholder is still set', function () {
     config(['app.frontend_url' => 'http://dpps.test:5173']);
